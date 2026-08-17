@@ -319,6 +319,10 @@ class _AdminComplaintDetailScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Status updated successfully')),
       );
+      setState(() {
+        _selectedStatus = null;
+        _notesController.clear();
+      });
       await _loadData();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -629,7 +633,12 @@ class _AdminComplaintDetailScreenState
                 title: 'Update Status',
                 children: [
                   DropdownButtonFormField<ComplaintStatus>(
-                    initialValue: _selectedStatus,
+                    key: ValueKey('${complaint.status}_${_selectedStatus?.name}'),
+                    initialValue: ComplaintStatus.values
+                            .where((status) => status != complaint.status)
+                            .contains(_selectedStatus)
+                        ? _selectedStatus
+                        : null,
                     items: ComplaintStatus.values
                         .where((status) => status != complaint.status)
                         .map(

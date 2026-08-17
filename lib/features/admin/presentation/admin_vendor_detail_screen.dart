@@ -73,7 +73,10 @@ class _AdminVendorDetailScreenState extends State<AdminVendorDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Status updated successfully')),
       );
-      _notesController.clear();
+      setState(() {
+        _selectedStatus = null;
+        _notesController.clear();
+      });
       _loadDetails();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -504,7 +507,12 @@ class _AdminVendorDetailScreenState extends State<AdminVendorDetailScreen> {
               title: 'Update Application Status',
               children: [
                 DropdownButtonFormField<VendorStatus>(
-                  initialValue: _selectedStatus,
+                  key: ValueKey('${application.status}_${_selectedStatus?.name}'),
+                  initialValue: VendorStatus.values
+                          .where((status) => status != application.status)
+                          .contains(_selectedStatus)
+                      ? _selectedStatus
+                      : null,
                   items: VendorStatus.values
                       .where((status) => status != application.status)
                       .map(
