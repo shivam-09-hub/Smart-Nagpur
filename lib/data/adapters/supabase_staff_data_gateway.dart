@@ -58,7 +58,7 @@ class SupabaseStaffDataGateway implements StaffDataGateway {
 
       final response = await client
           .from('complaint_assignments')
-          .select('*, complaints(service_type, issue, description, location_address, latitude, longitude)')
+          .select('*, complaints!complaint_assignments_complaint_id_fkey(service_type, issue, description, location_address, latitude, longitude)')
           .eq('staff_id', user.id);
 
       final tasks = (response as List<dynamic>)
@@ -92,7 +92,7 @@ class SupabaseStaffDataGateway implements StaffDataGateway {
     try {
       final response = await client
           .from('complaint_assignments')
-          .select('*, complaints(service_type, issue, description, location_address, latitude, longitude)')
+          .select('*, complaints!complaint_assignments_complaint_id_fkey(service_type, issue, description, location_address, latitude, longitude)')
           .eq('id', assignmentId)
           .maybeSingle();
 
