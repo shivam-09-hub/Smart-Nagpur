@@ -615,6 +615,9 @@ BEGIN
     RAISE EXCEPTION 'Security breach: File exceeding 10MB was accepted!';
   END IF;
 
+  -- 10.10 / 10.11 RLS: Switch to authenticated role so Postgres superuser bypasses do not apply
+  SET LOCAL ROLE authenticated;
+
   -- 10.10 RLS: Citizen can view evidence for their own complaint
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_citizen_id::text, 'role', 'authenticated')::text, false);
   IF NOT EXISTS (
@@ -630,6 +633,8 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'RLS breach: Unrelated citizen was able to view complaint evidence!';
   END IF;
+
+  RESET ROLE;
 
   -- 10.12 Security: Path traversal attempt with '..' rejected
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_staff_1_id::text, 'role', 'authenticated')::text, false);
