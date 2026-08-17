@@ -48,6 +48,8 @@ class SupabaseAuthGateway implements AuthGateway {
       }
     } on AuthException catch (error) {
       throw _friendlyException(error);
+    } catch (error) {
+      throw _handleNetworkError(error);
     }
   }
 
@@ -75,6 +77,8 @@ class SupabaseAuthGateway implements AuthGateway {
           : RegistrationStatus.authenticated;
     } on AuthException catch (error) {
       throw _friendlyException(error);
+    } catch (error) {
+      throw _handleNetworkError(error);
     }
   }
 
@@ -84,6 +88,8 @@ class SupabaseAuthGateway implements AuthGateway {
       await _client.auth.signOut();
     } on AuthException catch (error) {
       throw _friendlyException(error);
+    } catch (error) {
+      throw _handleNetworkError(error);
     }
   }
 
@@ -96,6 +102,8 @@ class SupabaseAuthGateway implements AuthGateway {
       );
     } on AuthException catch (error) {
       throw _friendlyException(error);
+    } catch (error) {
+      throw _handleNetworkError(error);
     }
   }
 
@@ -105,6 +113,8 @@ class SupabaseAuthGateway implements AuthGateway {
       await _client.auth.updateUser(UserAttributes(password: newPassword));
     } on AuthException catch (error) {
       throw _friendlyException(error);
+    } catch (error) {
+      throw _handleNetworkError(error);
     }
   }
 
@@ -117,6 +127,22 @@ class SupabaseAuthGateway implements AuthGateway {
     _ =>
       isAuthenticated ? AuthSessionEvent.refreshed : AuthSessionEvent.signedOut,
   };
+
+  AuthenticationGatewayException _handleNetworkError(Object error) {
+    if (error is AuthenticationGatewayException) return error;
+    final errStr = error.toString().toLowerCase();
+    if (errStr.contains('socketexception') ||
+        errStr.contains('failed host lookup') ||
+        errStr.contains('clientexception') ||
+        errStr.contains('network') ||
+        errStr.contains('connection refused') ||
+        errStr.contains('timeout')) {
+      return const AuthenticationGatewayException(
+        'No internet connection. Please connect your phone to Wi-Fi or Mobile Data and try again.',
+      );
+    }
+    return AuthenticationGatewayException(error.toString());
+  }
 
   AuthenticationGatewayException _friendlyException(AuthException error) {
     final message = switch (error.code) {

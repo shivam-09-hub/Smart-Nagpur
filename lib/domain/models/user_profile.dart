@@ -50,7 +50,7 @@ class UserProfile {
       phone: json['phone'] as String? ?? '',
       email: json['email'] as String? ?? '',
       address: json['address'] as String? ?? '',
-      avatarPath: json['avatarPath'] as String?,
+      avatarPath: (json['avatar_path'] ?? json['avatarPath']) as String?,
     );
   }
 }

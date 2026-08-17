@@ -68,61 +68,9 @@ class _AdminAppState extends State<AdminApp> {
         },
       ),
       onGenerateRoute: (settings) {
-        return _buildRoute(settings, _adminController);
+        return _buildAdminRoute(settings, _adminController);
       },
     );
-  }
-
-  Route<dynamic> _buildRoute(
-    RouteSettings settings,
-    AdminController controller,
-  ) {
-    switch (settings.name) {
-      case '/admin/login':
-        return MaterialPageRoute(
-          builder: (_) => AdminLoginScreen(controller: controller),
-        );
-      case '/admin/dashboard':
-        return MaterialPageRoute(
-          builder: (_) => AdminDashboardScreen(controller: controller),
-        );
-      case '/admin/complaints':
-        return MaterialPageRoute(
-          builder: (_) => AdminComplaintsScreen(controller: controller),
-        );
-      case '/admin/complaint-detail':
-        final complaintId = settings.arguments as String;
-        return MaterialPageRoute(
-          builder: (_) => AdminComplaintDetailScreen(
-            controller: controller,
-            complaintId: complaintId,
-          ),
-        );
-      case '/admin/vendors':
-        return MaterialPageRoute(
-          builder: (_) => AdminVendorsScreen(controller: controller),
-        );
-      case '/admin/vendor-detail':
-        final applicationId = settings.arguments as String;
-        return MaterialPageRoute(
-          builder: (_) => AdminVendorDetailScreen(
-            controller: controller,
-            applicationId: applicationId,
-          ),
-        );
-      case '/admin/notifications':
-        return MaterialPageRoute(
-          builder: (_) => AdminNotificationsScreen(controller: controller),
-        );
-      case '/admin/users':
-        return MaterialPageRoute(
-          builder: (_) => AdminUsersScreen(controller: controller),
-        );
-      default:
-        return MaterialPageRoute(
-          builder: (_) => AdminDashboardScreen(controller: controller),
-        );
-    }
   }
 }
 
@@ -135,19 +83,60 @@ class AdminShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Navigator(
-        onGenerateRoute: (settings) {
-          switch (settings.name ?? '') {
-            case '/admin/dashboard':
-              return MaterialPageRoute(
-                builder: (_) => AdminDashboardScreen(controller: controller),
-              );
-            default:
-              return MaterialPageRoute(
-                builder: (_) => AdminDashboardScreen(controller: controller),
-              );
-          }
-        },
+        onGenerateRoute: (settings) => _buildAdminRoute(settings, controller),
       ),
     );
+  }
+}
+
+Route<dynamic> _buildAdminRoute(
+  RouteSettings settings,
+  AdminController controller,
+) {
+  switch (settings.name) {
+    case '/admin/login':
+      return MaterialPageRoute(
+        builder: (_) => AdminLoginScreen(controller: controller),
+      );
+    case '/admin/dashboard':
+      return MaterialPageRoute(
+        builder: (_) => AdminDashboardScreen(controller: controller),
+      );
+    case '/admin/complaints':
+      return MaterialPageRoute(
+        builder: (_) => AdminComplaintsScreen(controller: controller),
+      );
+    case '/admin/complaint-detail':
+      final complaintId = settings.arguments as String;
+      return MaterialPageRoute(
+        builder: (_) => AdminComplaintDetailScreen(
+          controller: controller,
+          complaintId: complaintId,
+        ),
+      );
+    case '/admin/vendors':
+      return MaterialPageRoute(
+        builder: (_) => AdminVendorsScreen(controller: controller),
+      );
+    case '/admin/vendor-detail':
+      final applicationId = settings.arguments as String;
+      return MaterialPageRoute(
+        builder: (_) => AdminVendorDetailScreen(
+          controller: controller,
+          applicationId: applicationId,
+        ),
+      );
+    case '/admin/notifications':
+      return MaterialPageRoute(
+        builder: (_) => AdminNotificationsScreen(controller: controller),
+      );
+    case '/admin/users':
+      return MaterialPageRoute(
+        builder: (_) => AdminUsersScreen(controller: controller),
+      );
+    default:
+      return MaterialPageRoute(
+        builder: (_) => AdminDashboardScreen(controller: controller),
+      );
   }
 }

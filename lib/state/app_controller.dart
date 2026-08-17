@@ -662,6 +662,7 @@ class AppController extends ChangeNotifier {
   }
 
   void _clearProtectedData() {
+    remoteDataGateway?.unsubscribeFromLiveUpdates();
     _profile = null;
     _complaints = [];
     _vendorApplications = [];
@@ -687,11 +688,26 @@ class AppController extends ChangeNotifier {
       final data = await remoteDataGateway!.loadCurrentUserData();
       _applyRemoteData(data);
       _isOffline = false;
+      _subscribeToRealtimeSync();
     } on RemoteGatewayUnavailableException catch (error) {
       _isOffline = true;
       _error = error.message;
       if (!allowCachedFallback) rethrow;
     }
+  }
+
+  void _subscribeToRealtimeSync() {
+    if (!usesCloudBackend || _isDemoMode || !_isAuthenticated) return;
+    remoteDataGateway?.subscribeToLiveUpdates(() async {
+      try {
+        final data = await remoteDataGateway!.loadCurrentUserData();
+        _applyRemoteData(data);
+        await repository.save(_snapshot());
+        notifyListeners();
+      } catch (e) {
+        debugPrint('Realtime live sync background refresh failed: $e');
+      }
+    });
   }
 
   void _listenToAuthChanges() {

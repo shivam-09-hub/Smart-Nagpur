@@ -181,7 +181,27 @@ DROP POLICY IF EXISTS admin_storage_vendor_documents ON storage.objects;
 CREATE POLICY admin_storage_vendor_documents ON storage.objects
   FOR SELECT USING (bucket_id = 'vendor-documents' AND public.is_active_admin());
 
--- 7. Analytics & Dashboard RPC Functions
+-- 7. Analytics & Dashboard RPC Functions (Drop first to allow return type changes)
+DROP FUNCTION IF EXISTS public.get_complaint_stats() CASCADE;
+DROP FUNCTION IF EXISTS public.get_admin_stats() CASCADE;
+DROP FUNCTION IF EXISTS public.get_vendor_stats() CASCADE;
+DROP FUNCTION IF EXISTS public.get_user_stats() CASCADE;
+DROP FUNCTION IF EXISTS public.get_notification_stats() CASCADE;
+DROP FUNCTION IF EXISTS public.get_complaints_by_service() CASCADE;
+DROP FUNCTION IF EXISTS public.get_complaints_by_status() CASCADE;
+DROP FUNCTION IF EXISTS public.get_applications_by_status() CASCADE;
+DROP FUNCTION IF EXISTS public.get_daily_stats(integer) CASCADE;
+DROP FUNCTION IF EXISTS public.get_monthly_report(integer, integer) CASCADE;
+DROP FUNCTION IF EXISTS public.get_admin_pending_complaints(integer, integer, text) CASCADE;
+DROP FUNCTION IF EXISTS public.get_admin_complaint_details(text) CASCADE;
+DROP FUNCTION IF EXISTS public.get_admin_vendor_applications(integer, integer, text) CASCADE;
+DROP FUNCTION IF EXISTS public.get_admin_vendor_application_details(text) CASCADE;
+DROP FUNCTION IF EXISTS public.admin_update_complaint_status(text, text, text) CASCADE;
+DROP FUNCTION IF EXISTS public.admin_update_vendor_status(text, text, text) CASCADE;
+DROP FUNCTION IF EXISTS public.suspend_user(uuid, text) CASCADE;
+DROP FUNCTION IF EXISTS public.reactivate_user(uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.send_broadcast_notification(text, text, text) CASCADE;
+
 CREATE OR REPLACE FUNCTION public.get_complaint_stats()
 RETURNS jsonb
 LANGUAGE sql
@@ -845,3 +865,67 @@ CREATE TRIGGER admin_reviews_updated_at
   BEFORE UPDATE ON public.admin_reviews
   FOR EACH ROW
   EXECUTE FUNCTION public.update_admin_profiles_timestamp();
+
+-- 11. Storage Buckets (required for file uploads)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES 
+  ('complaint-photos', 'complaint-photos', false, 10485760, ARRAY['image/jpeg', 'image/png', 'image/webp']),
+  ('vendor-documents', 'vendor-documents', false, 10485760, ARRAY['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
+ON CONFLICT (id) DO NOTHING;
+
+-- 12. GRANT EXECUTE on Admin RPC Functions
+-- PostgREST only exposes functions in its schema cache if the connecting role
+-- (anon or authenticated) has EXECUTE permission. Without these grants, the
+-- functions exist in PostgreSQL but are invisible to the REST API.
+
+-- Revoke default public access first (security hardening)
+REVOKE ALL ON FUNCTION public.get_complaint_stats() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_admin_stats() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_vendor_stats() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_user_stats() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_notification_stats() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_complaints_by_service() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_complaints_by_status() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_applications_by_status() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_daily_stats(integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_monthly_report(integer, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_admin_pending_complaints(integer, integer, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_admin_complaint_details(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_admin_vendor_applications(integer, integer, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_admin_vendor_application_details(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.admin_update_complaint_status(text, text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.admin_update_vendor_status(text, text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.suspend_user(uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.reactivate_user(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.send_broadcast_notification(text, text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_active_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_super_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.update_admin_profiles_timestamp() FROM PUBLIC;
+
+-- Grant EXECUTE to authenticated role only (admin users are authenticated)
+GRANT EXECUTE ON FUNCTION public.get_complaint_stats() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_admin_stats() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_vendor_stats() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_stats() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_notification_stats() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_complaints_by_service() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_complaints_by_status() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_applications_by_status() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_daily_stats(integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_monthly_report(integer, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_admin_pending_complaints(integer, integer, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_admin_complaint_details(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_admin_vendor_applications(integer, integer, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_admin_vendor_application_details(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_update_complaint_status(text, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_update_vendor_status(text, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.suspend_user(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.reactivate_user(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.send_broadcast_notification(text, text, text) TO authenticated;
+
+-- Helper functions need authenticated access for RLS policy evaluation
+GRANT EXECUTE ON FUNCTION public.is_active_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_super_admin() TO authenticated;
+
+-- Notify PostgREST to reload its schema cache
+NOTIFY pgrst, 'reload schema';

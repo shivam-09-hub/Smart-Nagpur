@@ -494,6 +494,12 @@ class FakeRemoteDataGateway implements RemoteDataGateway {
 
   @override
   Future<void> markAllNotificationsRead() async {}
+
+  @override
+  void subscribeToLiveUpdates(void Function() onUpdate) {}
+
+  @override
+  void unsubscribeFromLiveUpdates() {}
 }
 
 UserProfile _profile(String name, String email) =>

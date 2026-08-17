@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../domain/domain.dart';
+import '../../features/complaints/presentation/widgets/development_map.dart';
 import '../theme/theme.dart';
 
 class DocumentUploadCard extends StatelessWidget {
@@ -297,107 +298,15 @@ class DevelopmentMapCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: onTap != null,
-      label: 'Development map placeholder at ${location.coordinates}',
-      child: Material(
-        color: AppColors.primarySoft,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: SizedBox(
-            height: height,
-            width: double.infinity,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                CustomPaint(painter: _MapGridPainter()),
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.location_pin,
-                        size: 48,
-                        color: AppColors.error,
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: AppSpacing.xs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                          boxShadow: AppShadows.card,
-                        ),
-                        child: Text(
-                          location.coordinates,
-                          style: AppTypography.caption,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Positioned(
-                  left: AppSpacing.sm,
-                  top: AppSpacing.sm,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.all(
-                        Radius.circular(AppRadius.sm),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: AppSpacing.xs,
-                        vertical: AppSpacing.xxs,
-                      ),
-                      child: Text(
-                        'DEVELOPMENT MAP',
-                        style: AppTypography.caption,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+    return SizedBox(
+      height: height,
+      width: double.infinity,
+      child: DevelopmentMap(
+        location: location,
+        onChanged: onTap != null ? (_) => onTap!() : null,
+        isEditable: false,
+        aspectRatio: 1.7,
       ),
     );
   }
-}
-
-class _MapGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final roadPaint = Paint()
-      ..color = AppColors.surface.withValues(alpha: 0.86)
-      ..strokeWidth = 9
-      ..style = PaintingStyle.stroke;
-    final minorPaint = Paint()
-      ..color = AppColors.primary.withValues(alpha: 0.12)
-      ..strokeWidth = 3;
-    for (var x = -size.height; x < size.width; x += 54) {
-      canvas.drawLine(
-        Offset(x.toDouble(), 0),
-        Offset(x + size.height, size.height),
-        minorPaint,
-      );
-    }
-    for (var y = 28.0; y < size.height; y += 62) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y + 20), roadPaint);
-    }
-    canvas.drawLine(
-      Offset(size.width * 0.15, 0),
-      Offset(size.width * 0.72, size.height),
-      roadPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_MapGridPainter oldDelegate) => false;
 }

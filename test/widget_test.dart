@@ -190,4 +190,10 @@ class _UnavailableRemoteGateway implements RemoteDataGateway {
   Future<VendorApplication> submitVendorApplication(
     VendorApplicationDraft draft,
   ) => throw UnimplementedError();
+
+  @override
+  void subscribeToLiveUpdates(void Function() onUpdate) {}
+
+  @override
+  void unsubscribeFromLiveUpdates() {}
 }

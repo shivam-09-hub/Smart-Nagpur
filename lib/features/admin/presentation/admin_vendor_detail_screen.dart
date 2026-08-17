@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_nagpur/core/theme/theme.dart';
+import 'package:smart_nagpur/core/widgets/app_photo_gallery.dart';
 import 'package:smart_nagpur/domain/domain.dart';
+import 'package:smart_nagpur/features/complaints/presentation/widgets/development_map.dart';
 import 'package:smart_nagpur/state/admin_controller.dart';
 
 class AdminVendorDetailScreen extends StatefulWidget {
@@ -224,6 +226,21 @@ class _AdminVendorDetailScreenState extends State<AdminVendorDetailScreen> {
             _buildSection(
               title: 'Vending Location',
               children: [
+                if (details.location != null) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: SizedBox(
+                      height: 200,
+                      width: double.infinity,
+                      child: DevelopmentMap(
+                        location: details.location!,
+                        isEditable: false,
+                        aspectRatio: 1.8,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 Row(
                   children: [
                     Icon(Icons.location_on, color: AppColors.primary),
@@ -233,16 +250,18 @@ class _AdminVendorDetailScreenState extends State<AdminVendorDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            details.location.address,
+                            details.location?.address ?? 'No specific address provided',
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(fontWeight: FontWeight.w600),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            details.location.coordinates,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppColors.textSecondary),
-                          ),
+                          if (details.location != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              details.location!.coordinates,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.textSecondary),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -252,36 +271,158 @@ class _AdminVendorDetailScreenState extends State<AdminVendorDetailScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Documents
+            // Documents & Photos
             if (details.documents.isNotEmpty) ...[
               _buildSection(
-                title: 'Attached Documents (${details.documents.length})',
+                title: 'Attached Documents & Photos (${details.documents.length})',
                 children: [
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: details.documents.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final doc = details.documents[index];
-                      return ListTile(
-                        leading: const Icon(
-                          Icons.description,
-                          color: AppColors.primary,
-                        ),
-                        title: Text(doc.label.isNotEmpty ? doc.label : doc.type),
-                        subtitle: Text(
-                          'Requirement: ${doc.requirement.name}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        trailing: const Icon(
-                          Icons.verified_user,
-                          color: AppColors.success,
-                          size: 20,
-                        ),
-                      );
-                    },
-                  ),
+                  ...details.documents.map((doc) {
+                    final hasImage = doc.path.isNotEmpty;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                hasImage ? Icons.image : Icons.description,
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  doc.label.isNotEmpty ? doc.label : doc.type,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  doc.requirement.name,
+                                  style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (hasImage) ...[
+                            const SizedBox(height: 10),
+                            GestureDetector(
+                              onTap: () {
+                                showDialog<void>(
+                                  context: context,
+                                  barrierColor: Colors.black87,
+                                  builder: (context) => Dialog.fullscreen(
+                                    backgroundColor: Colors.transparent,
+                                    child: Stack(
+                                      children: [
+                                        InteractiveViewer(
+                                          minScale: 0.5,
+                                          maxScale: 4.0,
+                                          child: Center(
+                                            child: AppImageWidget(
+                                              path: doc.path,
+                                              fit: BoxFit.contain,
+                                            ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          top: 40,
+                                          right: 20,
+                                          child: IconButton(
+                                            icon: const Icon(
+                                              Icons.close,
+                                              color: Colors.white,
+                                              size: 30,
+                                            ),
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: SizedBox(
+                                  height: 140,
+                                  width: double.infinity,
+                                  child: Stack(
+                                    children: [
+                                      Positioned.fill(
+                                        child: AppImageWidget(
+                                          path: doc.path,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 8,
+                                        right: 8,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.65,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.fullscreen,
+                                                color: Colors.white,
+                                                size: 14,
+                                              ),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                'Tap to view',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  }),
                 ],
               ),
               const SizedBox(height: 20),

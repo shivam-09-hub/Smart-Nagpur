@@ -12,8 +12,9 @@ abstract class AdminDataGateway {
   Future<ComplaintRecord?> getComplaintDetails(String complaintId);
   Future<void> updateComplaintStatus(
     String complaintId,
-    ComplaintStatus status,
-  );
+    ComplaintStatus status, {
+    String notes,
+  });
   Future<void> addComplaintTimeline(
     String complaintId,
     RequestTimelineEntry entry,
@@ -29,8 +30,9 @@ abstract class AdminDataGateway {
   Future<VendorApplication?> getApplicationDetails(String applicationId);
   Future<void> updateApplicationStatus(
     String applicationId,
-    VendorStatus status,
-  );
+    VendorStatus status, {
+    String notes,
+  });
   Future<void> addApplicationTimeline(
     String applicationId,
     RequestTimelineEntry entry,
@@ -62,4 +64,8 @@ abstract class AdminDataGateway {
   Future<Map<String, int>> getApplicationsByStatus();
   Future<List<Map<String, dynamic>>> getDailyStats(int days);
   Future<Map<String, dynamic>> getMonthlyReport(int month, int year);
+
+  // Realtime Live Sync
+  void subscribeToAdminLiveUpdates(void Function() onUpdate);
+  void unsubscribeFromAdminLiveUpdates();
 }

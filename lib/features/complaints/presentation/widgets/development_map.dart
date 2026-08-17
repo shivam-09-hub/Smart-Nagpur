@@ -1,144 +1,416 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:smart_nagpur/domain/domain.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-/// Configuration-free development map used until an approved map provider and
-/// API key are supplied. The marker is adjustable and emits real coordinates;
-/// replacing this widget does not affect complaint domain data.
-class DevelopmentMap extends StatelessWidget {
+/// Real interactive map widget supporting Street and Satellite views,
+/// interactive pin adjustment, zoom controls, and Google Maps launching.
+class DevelopmentMap extends StatefulWidget {
   const DevelopmentMap({
     required this.location,
-    required this.onChanged,
+    this.onChanged,
+    this.isEditable = true,
+    this.showControls = true,
+    this.aspectRatio = 1.45,
     super.key,
   });
 
   final ProblemLocation location;
-  final ValueChanged<ProblemLocation> onChanged;
+  final ValueChanged<ProblemLocation>? onChanged;
+  final bool isEditable;
+  final bool showControls;
+  final double aspectRatio;
+
+  @override
+  State<DevelopmentMap> createState() => _DevelopmentMapState();
+}
+
+class _DevelopmentMapState extends State<DevelopmentMap> {
+  late final MapController _mapController;
+  bool _isSatellite = false;
+  double _currentZoom = 15.5;
+
+  @override
+  void initState() {
+    super.initState();
+    _mapController = MapController();
+  }
+
+  @override
+  void didUpdateWidget(covariant DevelopmentMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.location.latitude != widget.location.latitude ||
+        oldWidget.location.longitude != widget.location.longitude) {
+      _mapController.move(
+        LatLng(widget.location.latitude, widget.location.longitude),
+        _currentZoom,
+      );
+    }
+  }
+
+  Future<void> _openInGoogleMaps() async {
+    final lat = widget.location.latitude;
+    final lng = widget.location.longitude;
+    final geoUri = Uri.parse('geo:$lat,$lng?q=$lat,$lng');
+    final webUri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
+    );
+
+    try {
+      if (await canLaunchUrl(geoUri)) {
+        await launchUrl(geoUri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    } catch (_) {}
+
+    try {
+      if (await canLaunchUrl(webUri)) {
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    } catch (_) {}
+
+    try {
+      await launchUrl(webUri, mode: LaunchMode.platformDefault);
+    } catch (_) {}
+  }
+
+  void _zoomIn() {
+    _currentZoom = (_currentZoom + 1.0).clamp(4.0, 19.0);
+    _mapController.move(
+      LatLng(widget.location.latitude, widget.location.longitude),
+      _currentZoom,
+    );
+  }
+
+  void _zoomOut() {
+    _currentZoom = (_currentZoom - 1.0).clamp(4.0, 19.0);
+    _mapController.move(
+      LatLng(widget.location.latitude, widget.location.longitude),
+      _currentZoom,
+    );
+  }
+
+  void _recenter() {
+    _mapController.move(
+      LatLng(widget.location.latitude, widget.location.longitude),
+      16.0,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Semantics(
-      label: 'Development map. Tap to adjust the complaint location pin.',
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final center = LatLng(widget.location.latitude, widget.location.longitude);
+
+    return RepaintBoundary(
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         child: AspectRatio(
-          aspectRatio: 1.45,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapDown: (details) {
-                  final x = (details.localPosition.dx / constraints.maxWidth)
-                      .clamp(0.0, 1.0);
-                  final y = (details.localPosition.dy / constraints.maxHeight)
-                      .clamp(0.0, 1.0);
-                  const centerLat = 21.1458;
-                  const centerLng = 79.0882;
-                  onChanged(
-                    location.copyWith(
-                      latitude: centerLat + (0.5 - y) * 0.055,
-                      longitude: centerLng + (x - 0.5) * 0.07,
-                      accuracy: math.max(location.accuracy, 15),
-                      address: 'Adjusted pin, Nagpur (development map)',
-                    ),
-                  );
+          aspectRatio: widget.aspectRatio,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Map Canvas
+            FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: center,
+                initialZoom: _currentZoom,
+                minZoom: 3.0,
+                maxZoom: 19.0,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all,
+                ),
+                onTap: widget.isEditable && widget.onChanged != null
+                    ? (tapPosition, point) {
+                        widget.onChanged!(
+                          widget.location.copyWith(
+                            latitude: point.latitude,
+                            longitude: point.longitude,
+                            address:
+                                'Selected pin (${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)})',
+                          ),
+                        );
+                      }
+                    : null,
+                onPositionChanged: (camera, hasGesture) {
+                  _currentZoom = camera.zoom;
                 },
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CustomPaint(
-                      painter: _DevelopmentMapPainter(
-                        background: scheme.primaryContainer.withValues(
-                          alpha: 0.48,
-                        ),
-                        road: scheme.surface,
-                        minorRoad: scheme.surface.withValues(alpha: 0.72),
-                        park: const Color(0xFFCFE8D3),
-                        water: const Color(0xFFC9E7F2),
+              ),
+              children: [
+                // Tile Layer (Street vs Satellite)
+                TileLayer(
+                  urlTemplate: _isSatellite
+                      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                      : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.smartnagpur.citizen',
+                  maxZoom: 19,
+                ),
+
+                // Accuracy circle around pin
+                if (widget.location.accuracy > 0)
+                  CircleLayer(
+                    circles: [
+                      CircleMarker(
+                        point: center,
+                        color: scheme.primary.withValues(alpha: 0.15),
+                        borderColor: scheme.primary.withValues(alpha: 0.6),
+                        borderStrokeWidth: 1.5,
+                        useRadiusInMeter: true,
+                        radius: widget.location.accuracy.clamp(10.0, 300.0),
                       ),
-                    ),
-                    Positioned(
-                      left: 12,
-                      top: 12,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: scheme.surface.withValues(alpha: 0.94),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          child: Text(
-                            'DEVELOPMENT MAP',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.7,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Center(
+                    ],
+                  ),
+
+                // Pin Marker
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: center,
+                      width: 50,
+                      height: 50,
+                      alignment: Alignment.topCenter,
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             Icons.location_pin,
-                            color: scheme.error,
-                            size: 48,
+                            color: Colors.red.shade600,
+                            size: 42,
                             shadows: const [
-                              Shadow(blurRadius: 8, color: Colors.black26),
+                              Shadow(
+                                blurRadius: 10,
+                                color: Colors.black54,
+                                offset: Offset(0, 3),
+                              ),
                             ],
                           ),
-                          Transform.translate(
-                            offset: const Offset(0, -8),
-                            child: Container(
-                              width: 10,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: Colors.black26,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
+                          Container(
+                            width: 8,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: Colors.black38,
+                              borderRadius: BorderRadius.circular(4),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    Positioned(
-                      left: 12,
-                      right: 12,
-                      bottom: 12,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: scheme.surface.withValues(alpha: 0.96),
-                          borderRadius: BorderRadius.circular(14),
+                  ],
+                ),
+              ],
+            ),
+
+            // Top-left: Map Type & Mode Badge
+            Positioned(
+              left: 12,
+              top: 12,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _isSatellite = !_isSatellite;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.72),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3),
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 6,
+                          offset: Offset(0, 2),
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Row(
-                            children: [
-                              Icon(Icons.touch_app, color: scheme.primary),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Tap anywhere to adjust the pin',
-                                  style: Theme.of(context).textTheme.labelLarge,
-                                ),
-                              ),
-                            ],
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isSatellite ? Icons.satellite_alt : Icons.map_outlined,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _isSatellite ? 'SATELLITE' : 'STREET MAP',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
                           ),
                         ),
-                      ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Top-right: Open in Google Maps Button
+            Positioned(
+              right: 12,
+              top: 12,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _openInGoogleMaps,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.surface.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 6,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.open_in_new,
+                          color: scheme.primary,
+                          size: 13,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Google Maps',
+                          style: TextStyle(
+                            color: scheme.primary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Bottom-right: Zoom and Recenter Controls
+            if (widget.showControls)
+              Positioned(
+                right: 12,
+                bottom: widget.isEditable ? 48 : 12,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildIconButton(
+                      icon: Icons.add,
+                      onTap: _zoomIn,
+                      tooltip: 'Zoom in',
+                    ),
+                    const SizedBox(height: 4),
+                    _buildIconButton(
+                      icon: Icons.remove,
+                      onTap: _zoomOut,
+                      tooltip: 'Zoom out',
+                    ),
+                    const SizedBox(height: 4),
+                    _buildIconButton(
+                      icon: Icons.my_location,
+                      onTap: _recenter,
+                      tooltip: 'Recenter on pin',
+                      iconColor: scheme.primary,
                     ),
                   ],
                 ),
-              );
-            },
+              ),
+
+            // Bottom-left: Tap to adjust prompt (when editable)
+            if (widget.isEditable && widget.onChanged != null)
+              Positioned(
+                left: 12,
+                right: 56,
+                bottom: 10,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: scheme.surface.withValues(alpha: 0.94),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.touch_app_outlined,
+                          color: scheme.primary,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Tap map to reposition pin',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+  Widget _buildIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required String tooltip,
+    Color? iconColor,
+  }) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.94),
+      shape: const CircleBorder(),
+      elevation: 2,
+      shadowColor: Colors.black26,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(
+            icon,
+            size: 18,
+            color: iconColor ?? Colors.black87,
           ),
         ),
       ),
@@ -146,82 +418,5 @@ class DevelopmentMap extends StatelessWidget {
   }
 }
 
-class _DevelopmentMapPainter extends CustomPainter {
-  const _DevelopmentMapPainter({
-    required this.background,
-    required this.road,
-    required this.minorRoad,
-    required this.park,
-    required this.water,
-  });
-
-  final Color background;
-  final Color road;
-  final Color minorRoad;
-  final Color park;
-  final Color water;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = background);
-    canvas.drawOval(
-      Rect.fromLTWH(
-        size.width * 0.68,
-        -20,
-        size.width * 0.38,
-        size.height * 0.52,
-      ),
-      Paint()..color = water,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-          size.width * 0.08,
-          size.height * 0.12,
-          size.width * 0.28,
-          size.height * 0.28,
-        ),
-        const Radius.circular(28),
-      ),
-      Paint()..color = park,
-    );
-
-    final major = Paint()
-      ..color = road
-      ..strokeWidth = 17
-      ..strokeCap = StrokeCap.round;
-    final minor = Paint()
-      ..color = minorRoad
-      ..strokeWidth = 8
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(-20, size.height * 0.72),
-      Offset(size.width + 20, size.height * 0.28),
-      major,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.52, -20),
-      Offset(size.width * 0.38, size.height + 20),
-      major,
-    );
-    canvas.drawLine(
-      Offset(-10, size.height * 0.28),
-      Offset(size.width * 0.72, size.height * 0.56),
-      minor,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.1, size.height + 10),
-      Offset(size.width * 0.92, -10),
-      minor,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _DevelopmentMapPainter oldDelegate) {
-    return oldDelegate.background != background ||
-        oldDelegate.road != road ||
-        oldDelegate.minorRoad != minorRoad ||
-        oldDelegate.park != park ||
-        oldDelegate.water != water;
-  }
-}
+/// Alias for compatibility
+typedef InteractiveCityMap = DevelopmentMap;

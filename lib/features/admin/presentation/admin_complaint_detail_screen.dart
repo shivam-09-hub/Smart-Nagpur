@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_nagpur/core/theme/theme.dart';
+import 'package:smart_nagpur/core/widgets/app_photo_gallery.dart';
 import 'package:smart_nagpur/domain/domain.dart';
+import 'package:smart_nagpur/features/complaints/presentation/widgets/development_map.dart';
 import 'package:smart_nagpur/state/admin_controller.dart';
 
 class AdminComplaintDetailScreen extends StatefulWidget {
@@ -212,12 +214,34 @@ class _AdminComplaintDetailScreenState
                 Text(complaint.description),
               ],
             ),
+            if (complaint.photoPaths.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              _buildSection(
+                title: 'Attached Photos (${complaint.photoPaths.length})',
+                children: [
+                  AppPhotoGallery(photoPaths: complaint.photoPaths),
+                ],
+              ),
+            ],
             const SizedBox(height: 24),
 
             // Location
             _buildSection(
               title: 'Location',
               children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: SizedBox(
+                    height: 200,
+                    width: double.infinity,
+                    child: DevelopmentMap(
+                      location: complaint.location,
+                      isEditable: false,
+                      aspectRatio: 1.8,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Icon(Icons.location_on, color: AppColors.primary),

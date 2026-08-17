@@ -44,6 +44,7 @@ class AdminController extends ChangeNotifier {
       _isLoading = true;
       _error = null;
       _currentAdmin = await authGateway.loginAdmin(email, password);
+      _subscribeToAdminLiveSync();
       notifyListeners();
       return true;
     } catch (e) {
@@ -57,6 +58,7 @@ class AdminController extends ChangeNotifier {
   Future<void> logoutAdmin() async {
     try {
       _isLoading = true;
+      dataGateway.unsubscribeFromAdminLiveUpdates();
       await authGateway.logoutAdmin();
       _currentAdmin = null;
       _adminStats = null;
@@ -77,11 +79,33 @@ class AdminController extends ChangeNotifier {
   Future<void> checkAuthStatus() async {
     try {
       _currentAdmin = await authGateway.getCurrentAdmin();
+      if (_currentAdmin != null) {
+        _subscribeToAdminLiveSync();
+      }
       notifyListeners();
     } catch (e) {
       _currentAdmin = null;
       notifyListeners();
     }
+  }
+
+  void _subscribeToAdminLiveSync() {
+    dataGateway.subscribeToAdminLiveUpdates(() async {
+      try {
+        _adminStats = await dataGateway.getAdminStats();
+        _pendingComplaints = await dataGateway.getPendingComplaints();
+        _pendingApplications = await dataGateway.getPendingApplications();
+        notifyListeners();
+      } catch (e) {
+        debugPrint('Admin realtime live sync refresh failed: $e');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    dataGateway.unsubscribeFromAdminLiveUpdates();
+    super.dispose();
   }
 
   // Dashboard & Stats
@@ -134,15 +158,11 @@ class AdminController extends ChangeNotifier {
   ) async {
     try {
       _isLoading = true;
-      await dataGateway.updateComplaintStatus(complaintId, status);
-
-      // Add timeline entry
-      final entry = RequestTimelineEntry(
-        title: 'Status Updated',
-        timestamp: DateTime.now(),
-        message: 'Admin updated status to ${status.label}. Notes: $notes',
+      await dataGateway.updateComplaintStatus(
+        complaintId,
+        status,
+        notes: notes,
       );
-      await dataGateway.addComplaintTimeline(complaintId, entry);
 
       // Refresh complaints
       await loadPendingComplaints();
@@ -209,15 +229,11 @@ class AdminController extends ChangeNotifier {
   ) async {
     try {
       _isLoading = true;
-      await dataGateway.updateApplicationStatus(applicationId, status);
-
-      // Add timeline entry
-      final entry = RequestTimelineEntry(
-        title: 'Status Updated',
-        timestamp: DateTime.now(),
-        message: 'Admin updated status to ${status.label}. Notes: $notes',
+      await dataGateway.updateApplicationStatus(
+        applicationId,
+        status,
+        notes: notes,
       );
-      await dataGateway.addApplicationTimeline(applicationId, entry);
 
       // Refresh applications
       await loadPendingApplications();

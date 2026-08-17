@@ -68,22 +68,39 @@ class AdminReview {
     'attachmentNotes': attachmentNotes,
   };
 
+  Map<String, Object?> toDbMap() => {
+    'id': id,
+    'item_type': itemType,
+    'item_id': itemId,
+    'reviewed_by': reviewedBy,
+    'status': status.name,
+    'created_at': createdAt.toIso8601String(),
+    'updated_at': DateTime.now().toIso8601String(),
+    'comments': comments,
+    'rating': rating,
+    'attachment_notes': attachmentNotes,
+  };
+
   factory AdminReview.fromJson(Map<String, Object?> json) {
     return AdminReview(
       id: json['id'] as String? ?? '',
-      itemType: json['itemType'] as String? ?? '',
-      itemId: json['itemId'] as String? ?? '',
-      reviewedBy: json['reviewedBy'] as String? ?? '',
+      itemType: (json['item_type'] ?? json['itemType']) as String? ?? '',
+      itemId: (json['item_id'] ?? json['itemId']) as String? ?? '',
+      reviewedBy: (json['reviewed_by'] ?? json['reviewedBy']) as String? ?? '',
       status: ReviewStatus.values.firstWhere(
         (status) => status.name == json['status'],
         orElse: () => ReviewStatus.pending,
       ),
       createdAt:
-          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+          DateTime.tryParse(
+            (json['created_at'] ?? json['createdAt']) as String? ?? '',
+          ) ??
           DateTime.now(),
       comments: json['comments'] as String? ?? '',
       rating: json['rating'] as int?,
-      attachmentNotes: json['attachmentNotes'] as String? ?? '',
+      attachmentNotes:
+          (json['attachment_notes'] ?? json['attachmentNotes']) as String? ??
+          '',
     );
   }
 }

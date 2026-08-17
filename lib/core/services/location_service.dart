@@ -60,17 +60,55 @@ class DeviceLocationService implements LocationService {
       throw LocationServiceException(access, _messageFor(access));
     }
 
-    final position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        timeLimit: Duration(seconds: 20),
-      ),
-    );
+    Position? position;
+
+    // 1. Try instant last known location first (< 50ms)
+    try {
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null &&
+          DateTime.now().difference(lastKnown.timestamp).inMinutes < 20) {
+        position = lastKnown;
+      }
+    } catch (_) {}
+
+    // 2. If no fresh last known position, get current position with medium accuracy (fast cellular/wifi + gps)
+    if (position == null) {
+      try {
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 4),
+          ),
+        );
+      } catch (_) {
+        // 3. Fallback to any last known position or low accuracy
+        position = await Geolocator.getLastKnownPosition();
+        if (position == null) {
+          try {
+            position = await Geolocator.getCurrentPosition(
+              locationSettings: const LocationSettings(
+                accuracy: LocationAccuracy.low,
+                timeLimit: Duration(seconds: 3),
+              ),
+            );
+          } catch (_) {}
+        }
+      }
+    }
+
+    if (position == null) {
+      throw const LocationServiceException(
+        LocationAccess.serviceDisabled,
+        'Unable to determine your location. Please select the pin manually on the map.',
+      );
+    }
+
     return ProblemLocation(
       latitude: position.latitude,
       longitude: position.longitude,
       accuracy: position.accuracy,
-      address: 'Selected GPS location',
+      address:
+          'Nagpur (${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)})',
     );
   }
 

@@ -3,7 +3,7 @@ import 'package:smart_nagpur/domain/domain.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseAdminDataGateway implements AdminDataGateway {
-  const SupabaseAdminDataGateway({required this.client});
+  SupabaseAdminDataGateway({required this.client});
 
   final SupabaseClient client;
 
@@ -76,13 +76,13 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
       );
 
       if (response is List) {
-        return response
-            .whereType<Map>()
-            .map(
-              (item) =>
-                  ComplaintRecord.fromJson(Map<String, Object?>.from(item)),
-            )
-            .toList();
+        final list = <ComplaintRecord>[];
+        for (final item in response) {
+          if (item is Map) {
+            list.add(await _mapComplaintRecord(Map<String, Object?>.from(item)));
+          }
+        }
+        return list;
       }
       return [];
     } catch (e) {
@@ -99,24 +99,54 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
       );
 
       if (response == null || response is! Map) return null;
-      return ComplaintRecord.fromJson(Map<String, Object?>.from(response));
+      return await _mapComplaintRecord(Map<String, Object?>.from(response));
     } catch (e) {
       rethrow;
     }
   }
 
+  Future<ComplaintRecord> _mapComplaintRecord(Map<String, Object?> map) async {
+    final photosRaw = map['photos'];
+    final photoPaths = <String>[];
+    if (photosRaw is List) {
+      for (final item in photosRaw) {
+        if (item is Map) {
+          final bucket = item['bucket'] as String? ?? 'complaint-photos';
+          final objectPath = item['objectPath'] as String? ?? '';
+          if (objectPath.isNotEmpty) {
+            try {
+              final signedUrl = await client.storage
+                  .from(bucket)
+                  .createSignedUrl(objectPath, 60 * 60 * 24);
+              photoPaths.add(signedUrl);
+            } catch (_) {
+              final publicUrl = client.storage
+                  .from(bucket)
+                  .getPublicUrl(objectPath);
+              photoPaths.add(publicUrl);
+            }
+          }
+        }
+      }
+    }
+    final json = Map<String, Object?>.from(map);
+    json['photoPaths'] = photoPaths;
+    return ComplaintRecord.fromJson(json);
+  }
+
   @override
   Future<void> updateComplaintStatus(
     String complaintId,
-    ComplaintStatus status,
-  ) async {
+    ComplaintStatus status, {
+    String notes = '',
+  }) async {
     try {
       await client.rpc(
         'admin_update_complaint_status',
         params: {
           'p_complaint_id': complaintId,
           'p_status': status.name,
-          'p_notes': '',
+          'p_notes': notes,
         },
       );
     } catch (e) {
@@ -130,14 +160,13 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
     RequestTimelineEntry entry,
   ) async {
     try {
-      await client.rpc(
-        'admin_update_complaint_status',
-        params: {
-          'p_complaint_id': complaintId,
-          'p_status': 'inProgress',
-          'p_notes': entry.message ?? entry.title,
-        },
-      );
+      await client.from('complaint_timeline').insert({
+        'complaint_id': complaintId,
+        'title': entry.title,
+        'message': entry.message ?? '',
+        'is_completed': entry.isCompleted,
+        'occurred_at': entry.timestamp.toIso8601String(),
+      });
     } catch (_) {
       // Fallback
     }
@@ -163,7 +192,7 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
   @override
   Future<void> submitComplaintReview(AdminReview review) async {
     try {
-      await client.from('admin_reviews').upsert(review.toJson());
+      await client.from('admin_reviews').upsert(review.toDbMap());
     } catch (e) {
       rethrow;
     }
@@ -181,13 +210,13 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
       );
 
       if (response is List) {
-        return response
-            .whereType<Map>()
-            .map(
-              (item) =>
-                  VendorApplication.fromJson(Map<String, Object?>.from(item)),
-            )
-            .toList();
+        final list = <VendorApplication>[];
+        for (final item in response) {
+          if (item is Map) {
+            list.add(await _mapVendorApplication(Map<String, Object?>.from(item)));
+          }
+        }
+        return list;
       }
       return [];
     } catch (e) {
@@ -204,24 +233,62 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
       );
 
       if (response == null || response is! Map) return null;
-      return VendorApplication.fromJson(Map<String, Object?>.from(response));
+      return await _mapVendorApplication(Map<String, Object?>.from(response));
     } catch (e) {
       rethrow;
     }
   }
 
+  Future<VendorApplication> _mapVendorApplication(Map<String, Object?> map) async {
+    final json = Map<String, Object?>.from(map);
+    final detailsRaw = json['details'];
+    if (detailsRaw is Map) {
+      final details = Map<String, Object?>.from(detailsRaw);
+      final remoteDocs = details['documents'];
+      final localDocs = <Map<String, Object?>>[];
+      if (remoteDocs is List) {
+        for (final item in remoteDocs) {
+          if (item is Map) {
+            final bucket = item['bucket'] as String? ?? 'vendor-documents';
+            final objectPath = item['objectPath'] as String? ?? '';
+            String url = '';
+            if (objectPath.isNotEmpty) {
+              try {
+                url = await client.storage
+                    .from(bucket)
+                    .createSignedUrl(objectPath, 60 * 60 * 24);
+              } catch (_) {
+                url = client.storage.from(bucket).getPublicUrl(objectPath);
+              }
+            }
+            localDocs.add({
+              'type': item['type'] ?? '',
+              'label': item['label'] ?? '',
+              'requirement': item['requirement'] ?? 'optional',
+              'path': url,
+            });
+          }
+        }
+      }
+      details['documents'] = localDocs;
+      json['details'] = details;
+    }
+    return VendorApplication.fromJson(json);
+  }
+
   @override
   Future<void> updateApplicationStatus(
     String applicationId,
-    VendorStatus status,
-  ) async {
+    VendorStatus status, {
+    String notes = '',
+  }) async {
     try {
       await client.rpc(
         'admin_update_vendor_status',
         params: {
           'p_application_id': applicationId,
           'p_status': status.name,
-          'p_notes': '',
+          'p_notes': notes,
         },
       );
     } catch (e) {
@@ -235,14 +302,13 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
     RequestTimelineEntry entry,
   ) async {
     try {
-      await client.rpc(
-        'admin_update_vendor_status',
-        params: {
-          'p_application_id': applicationId,
-          'p_status': 'underReview',
-          'p_notes': entry.message ?? entry.title,
-        },
-      );
+      await client.from('vendor_timeline').insert({
+        'vendor_application_id': applicationId,
+        'title': entry.title,
+        'message': entry.message ?? '',
+        'is_completed': entry.isCompleted,
+        'occurred_at': entry.timestamp.toIso8601String(),
+      });
     } catch (_) {
       // Fallback
     }
@@ -268,7 +334,7 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
   @override
   Future<void> submitApplicationReview(AdminReview review) async {
     try {
-      await client.from('admin_reviews').upsert(review.toJson());
+      await client.from('admin_reviews').upsert(review.toDbMap());
     } catch (e) {
       rethrow;
     }
@@ -467,5 +533,58 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
     } catch (e) {
       rethrow;
     }
+  }
+
+  RealtimeChannel? _adminRealtimeChannel;
+
+  @override
+  void subscribeToAdminLiveUpdates(void Function() onUpdate) {
+    _adminRealtimeChannel?.unsubscribe();
+
+    _adminRealtimeChannel = client
+        .channel('admin-live-sync')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'complaints',
+          callback: (_) => onUpdate(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'vendor_applications',
+          callback: (_) => onUpdate(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'complaint_timeline',
+          callback: (_) => onUpdate(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'vendor_timeline',
+          callback: (_) => onUpdate(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'admin_reviews',
+          callback: (_) => onUpdate(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'notifications',
+          callback: (_) => onUpdate(),
+        )
+        .subscribe();
+  }
+
+  @override
+  void unsubscribeFromAdminLiveUpdates() {
+    _adminRealtimeChannel?.unsubscribe();
+    _adminRealtimeChannel = null;
   }
 }

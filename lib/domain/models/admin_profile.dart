@@ -110,10 +110,14 @@ class AdminProfile {
       phone: json['phone'] as String? ?? '',
       role: adminRoleFromJson(json['role']),
       createdAt:
-          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+          DateTime.tryParse(
+            (json['created_at'] ?? json['createdAt']) as String? ?? '',
+          ) ??
           DateTime.now(),
-      lastLoginAt: DateTime.tryParse(json['lastLoginAt'] as String? ?? ''),
-      isActive: json['isActive'] as bool? ?? true,
+      lastLoginAt: DateTime.tryParse(
+        (json['last_login_at'] ?? json['lastLoginAt']) as String? ?? '',
+      ),
+      isActive: (json['is_active'] ?? json['isActive']) as bool? ?? true,
       permissions: (json['permissions'] as List<Object?>? ?? const [])
           .whereType<String>()
           .toList(),

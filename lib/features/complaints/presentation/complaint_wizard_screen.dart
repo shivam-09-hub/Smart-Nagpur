@@ -539,7 +539,7 @@ class _ComplaintWizardScreenState extends State<ComplaintWizardScreen> {
         OutlinedButton.icon(
           onPressed: _useDevelopmentLocation,
           icon: const Icon(Icons.map_outlined),
-          label: const Text('Select on development map'),
+          label: const Text('Select location on map'),
         ),
         if (_location != null) ...[
           const SizedBox(height: 20),

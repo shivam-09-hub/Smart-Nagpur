@@ -437,4 +437,53 @@ class SupabaseRemoteDataGateway implements RemoteDataGateway {
       code: 'invalid_remote_data',
     );
   }
+
+  RealtimeChannel? _realtimeChannel;
+
+  @override
+  void subscribeToLiveUpdates(void Function() onUpdate) {
+    _realtimeChannel?.unsubscribe();
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    _realtimeChannel = _client
+        .channel('citizen-live-sync-$userId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'complaints',
+          callback: (_) => onUpdate(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'vendor_applications',
+          callback: (_) => onUpdate(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'complaint_timeline',
+          callback: (_) => onUpdate(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'vendor_timeline',
+          callback: (_) => onUpdate(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'notifications',
+          callback: (_) => onUpdate(),
+        )
+        .subscribe();
+  }
+
+  @override
+  void unsubscribeFromLiveUpdates() {
+    _realtimeChannel?.unsubscribe();
+    _realtimeChannel = null;
+  }
 }

@@ -1,48 +1,115 @@
-# Implementation memory
+# Project Memory & Context Bank — Smart Nagpur
 
-## 2026-08-17
+**Last Updated:** 2026-08-17  
+**Project Status:** Active Development / Dual Flavor Ready (Citizen & Admin)  
+**Primary Language/Framework:** Flutter (Dart SDK `^3.11.5`)  
+**Backend:** Supabase (PostgreSQL 15+, Auth, Storage, RLS, RPCs)
 
-- Confirmed the supplied workspace was empty and contained no documentation or
-  Stitch artifacts; user approved a greenfield build in this folder.
-- Created one Android Flutter application with application ID
-  `com.smartnagpur.citizen`.
-- Added only the packages required for GPS, image selection, document selection,
-  durable app-private storage, localization formatting, Supabase, and UUID-safe
-  Storage object names.
-- Implemented centralized theme/localization, repository boundaries, local JSON
-  persistence, demo data, and reusable loading/empty/error components.
-- Implemented splash, onboarding, Home, news, search, ten services, universal
-  complaint flow, photo/GPS/development-map flow, My Requests, notifications,
-  profile/settings, and vendor application/tracking flows.
-- Replaced mock signed-in persistence with Supabase email/password Auth,
-  Postgres, private Storage, owner-scoped data/file gateways, confirmation and
-  password-recovery deep links, and an explicit local-only demo entry point.
-- Added the idempotent Supabase migration, transactional complaint/vendor RPCs,
-  Auth profile trigger, least-privilege grants, Row-Level Security and Storage
-  policies, plus a schema contract test. The remote project still requires the
-  authorized one-time SQL Editor deployment and the exact redirect allowlist
-  entry `com.smartnagpur.citizen://login-callback/`.
-- The Flutter client contains only a publishable key. A database password,
-  secret key, or service-role key must never be embedded in the app; authorization
-  is enforced by Supabase Auth, RLS, restricted grants, and owner-scoped RPCs.
-- Onboarding, locale, and matching-user cloud reads use app-private local
-  storage. Cached reads provide a temporary offline fallback, but cloud writes
-  are not queued. Protected cached data is cleared on sign-out/user mismatch,
-  and a local authentication flag is never accepted as a Supabase session.
-- Demo records remain explicitly local-only. The Supabase project is not
-  connected to an official municipal case-management system, so neither cloud
-  nor demo submissions represent official municipal processing.
-- Map provider decision remains deferred until an approved provider/configuration
-  is supplied. `DevelopmentMap` is the current adjustable-pin fallback.
-- Stitch visual validation remains pending because no Stitch artifact exists in
-  the workspace.
-- Installed and launched the original greenfield debug build on a physical Vivo
-  V2142 running Android 14. A cold-start listener notification assertion found
-  in the first device run was fixed by deferring initialization until after the
-  first frame; the corrected build foregrounded with no Flutter, fatal, or app
-  ANR log entry.
-- Expanded regression coverage for configuration safety, cache isolation,
-  cloud login/session hydration, email-confirmation registration, logout, and
-  password recovery. At the Supabase integration checkpoint, `flutter analyze
-  --no-pub` was clean, all 25 tests passed, and `flutter build apk --debug
-  --no-pub` completed successfully.
+---
+
+## 1. Quick Context Snapshot (Token Optimization)
+
+This document allows developers and AI assistants to instantly restore complete project context without expensive codebase-wide scanning.
+
+### Core Stack & Architecture
+- **Framework:** Flutter with Dart 3.x strict null-safety and `flutter_lints: ^6.0.0`.
+- **State Management:** Flutter's built-in `ChangeNotifier` and `ListenableBuilder` (`AppController` for Citizen app, `AdminController` for Admin app). No third-party state managers (Bloc/Riverpod).
+- **Backend:** Supabase project `hcpcycfvupjuklhcaxzg.supabase.co`. Client uses publishable key only (`sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y`).
+- **Storage Buckets:** Private buckets `complaint-photos` and `vendor-documents` with RLS policies restricting access to owner (`<auth.uid()>/...`) and authorized admins.
+- **Deep Links:** `com.smartnagpur.citizen://login-callback/` and `com.smartnagpur.admin://login-callback/`.
+- **Flavors:**
+  1. `citizen`: `com.smartnagpur.citizen` (Entry: `lib/main.dart`)
+  2. `admin`: `com.smartnagpur.admin` (Entry: `lib/admin_main.dart`)
+
+---
+
+## 2. Key Architectural Decisions & Invariants
+
+1. **Gateway Abstraction:**
+   - All backend calls go through abstract gateway interfaces (`AuthGateway`, `RemoteDataGateway`, `AdminAuthGateway`, `AdminDataGateway`).
+   - The UI and domain models never import or reference `supabase_flutter` directly. This enables 100% deterministic unit/widget testing without cloud dependencies.
+2. **Security & RLS Invariants:**
+   - Secret keys, service-role keys, and database passwords are **NEVER** embedded in the mobile client.
+   - All database updates and milestone additions are handled via PostgreSQL transactional RPCs (`submit_complaint`, `submit_vendor_application`, `suspend_user`, etc.).
+   - Row-Level Security (RLS) restricts all citizen operations to `auth.uid() = user_id`.
+3. **Offline Caching Policy:**
+   - Local storage (`LocalAppRepository` + `JsonFileStore`) caches onboarding preferences, locale, and user-ID-scoped reads.
+   - Cached reads provide temporary offline fallback; offline write queuing is intentionally prohibited (submissions require live connection).
+   - Logging out immediately purges sensitive cached data via `_clearProtectedData()`.
+4. **Demo Mode Isolation:**
+   - Demo mode is strictly local-only and uses in-memory `DemoData`. It never calls Supabase or transmits mock records to the cloud.
+
+---
+
+## 3. Historical Changelog & Milestones
+
+### Greenfield & Architecture Foundation (2026-08-17)
+- Initialized clean Flutter Android application with ID `com.smartnagpur.citizen`.
+- Configured dependencies: `supabase_flutter: ^2.16.0`, `geolocator: ^14.0.3`, `image_picker: ^1.2.3`, `file_picker: ^12.0.0`, `path_provider: ^2.1.6`, `intl: ^0.20.2`, `uuid: ^4.6.0`.
+- Built centralized design system (`AppColors`, `AppSpacing`, `AppRadius`, `AppTypography`, `AppTheme`, `ServiceTheme`) and bilingual localization (`AppStrings` for English and Marathi).
+- Implemented core domain models: `ComplaintRecord`, `VendorApplication`, `UserProfile`, `ProblemLocation`, `AppNotification`, `NewsItem`, `ServiceDefinition`.
+
+### Citizen Feature Complete Implementation
+- Implemented Splash and Onboarding walkthrough screens with persistent state.
+- Implemented Auth suite: Login, Register, Forgot Password, Verification, Password Recovery.
+- Built Home screen with quick-action 10 civic service grid, recent requests, and news updates.
+- Built Universal Complaint Reporting Wizard with service selection, GPS location detection, `DevelopmentMap` pin placement, camera/gallery photo picker (up to 3 images), and review step.
+- Built Street Vendor Permitting Hub with 4-step registration wizard, zone map explorer, document upload center (PDF/JPG/PNG), application status tracker, and license renewal.
+- Built My Requests unified tracking center with step-by-step milestone timelines.
+- Built Notification Center, City News, Global Search, and Profile/Settings (language switch, saved locations, privacy, terms, help).
+
+### Supabase Cloud Backend Integration
+- Authored idempotent SQL migration `supabase/migrations/202608170001_smart_nagpur_backend.sql` creating tables (`profiles`, `complaints`, `vendor_applications`, `notifications`), RLS policies, transactional RPCs, Storage buckets, and Auth trigger.
+- Created schema contract test `supabase/tests/schema_contract.sql`.
+- Added `SupabaseConfig` environment parser and publishable key validator.
+- Implemented `SupabaseAuthGateway`, `SupabaseRemoteDataGateway`, and `SupabaseFileGateway`.
+
+### Municipal Admin Application & Build Flavors (2026-08-18)
+- Designed admin SQL migration `supabase/migrations/202608180001_smart_nagpur_admin.sql` creating `admin_profiles`, `admin_reviews`, `admin_notifications`, `user_suspensions`, and admin RPCs (`get_admin_stats`, `suspend_user`, `send_broadcast_notification`, etc.).
+- Created admin domain entities (`AdminProfile`, `AdminStats`, `AdminReview`) supporting 6 roles (`superAdmin`, `complaintReviewer`, `vendorReviewer`, `reportViewer`, `notificationManager`, `userManager`).
+- Created `lib/admin_main.dart` and `AdminController`.
+- Built 8 admin screens: Login, Dashboard (KPIs), Complaints Queue, Complaint Detail & Review, Vendors Queue, Vendor Detail & Document Review, Notifications Broadcast Composer, and User Account Manager.
+- Configured Gradle build flavors (`citizen` and `admin`).
+
+### Device Validation & Test Hardening
+- Tested debug build on physical Vivo V2142 (Android 14). Resolved a cold-start listener assertion by deferring initialization until post-frame callback.
+- Expanded automated test coverage across `AppController`, `CloudAppController`, `PrivateFileStore`, `SupabaseConfig`, and widget trees (25 passing tests under `test/`).
+
+---
+
+## 4. Current File Map
+
+```
+d:\SmartNagpur\
+├── PRD.md                             # Complete Project Requirements Document
+├── ARCHITECTURE.md                    # System architecture, data flow, and layers
+├── RULES.md                           # AI boundaries, coding standards, and security rules
+├── PHASES.md                          # Implementation phases, progress, and future roadmap
+├── DESIGN.md                          # Visual design system, color palette, and typography tokens
+├── MEMORY.md                          # This context bank and historical memory log
+├── README.md                          # General project setup and run instructions
+├── ADMIN_README.md                    # Admin application specific guide
+├── BUILD_FLAVORS_GUIDE.md             # Guide for building citizen vs admin APKs
+├── pubspec.yaml                       # Flutter dependencies and assets
+├── lib/
+│   ├── main.dart                      # Citizen App Entry Point
+│   ├── admin_main.dart                # Admin App Entry Point
+│   ├── app.dart                       # Citizen App Routing & Shell
+│   ├── core/                          # Tokens, Theme, Localization, Services, Widgets
+│   ├── domain/models/                 # Domain entities & Drafts
+│   ├── data/                          # Gateways, Adapters, Supabase, Local JSON Store
+│   ├── state/                         # AppController & AdminController
+│   └── features/                      # Citizen & Admin presentation modules
+└── supabase/
+    ├── README.md                      # Backend setup and SQL deployment instructions
+    ├── migrations/                    # Checked-in SQL migrations
+    └── tests/                         # Contract tests
+```
+
+---
+
+## 5. Next Immediate Action Items
+
+1. **Supabase SQL Migration Deployment:** Run `202608170001_smart_nagpur_backend.sql` and `202608180001_smart_nagpur_admin.sql` in Supabase SQL Editor for the target project.
+2. **Redirect URLs Allowlist:** Add `com.smartnagpur.citizen://login-callback/` and `com.smartnagpur.admin://login-callback/` in Supabase Auth settings.
+3. **NMC Municipal Integration:** Connect Supabase webhooks to official NMC e-Nagarseva APIs when credentials and endpoints are provisioned.

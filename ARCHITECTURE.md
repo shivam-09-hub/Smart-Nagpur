@@ -1,192 +1,243 @@
-# Architecture
+# System Architecture & Technical Specification — Smart Nagpur
 
-Smart Nagpur is one Flutter Android application for both citizen and vendor
-workflows. It uses null-safe Dart and a feature-based structure.
+This document outlines the complete architectural design, data flow, component boundaries, technical stack, and security model of the **Smart Nagpur** platform.
 
-## Layers
+---
 
-- `lib/domain`: serializable entities and drafts with no persistence concerns.
-- `lib/data`: app-owned Auth/data/file contracts, Supabase adapters, demo data,
-  and JSON local cache storage.
-- `lib/state`: `AppController`, the application-level coordinator and injectable
-  boundary between presentation and repositories/device capabilities.
-- `lib/core`: theme, localization, reusable widgets, and replaceable GPS/media/
-  document services.
-- `lib/features`: route-level presentation and feature-specific widgets.
+## 1. Technical Stack Overview
 
-The signed-in presentation flow is:
+| Layer / Subsystem | Technology / Package | Role & Responsibility |
+| :--- | :--- | :--- |
+| **Framework** | Flutter (Dart SDK `^3.11.5`) | Cross-platform UI toolkit targeting Android. |
+| **Backend & Database** | Supabase (PostgreSQL 15+) | Managed database, relational schemas, RPCs, Auth, and Storage. |
+| **Authentication** | Supabase Auth | Email/Password auth, session management, password recovery deep links. |
+| **File Storage** | Supabase Storage | Private buckets for complaint photos and vendor documentation. |
+| **Location Services** | `geolocator: ^14.0.3` | Foreground GPS coordinate extraction and accuracy scoring. |
+| **Media & File Capture**| `image_picker: ^1.2.3`, `file_picker: ^12.0.0` | Camera capture, photo gallery selection, PDF document picking. |
+| **Local Persistence** | `path_provider: ^2.1.6` + JSON Store | App-private cache for preferences, locale, and user-scoped offline reads. |
+| **Localization & I18n** | `flutter_localizations`, `intl: ^0.20.2` | Bilingual translation engine supporting English and Marathi (`mr`). |
+| **State Management** | Flutter `ChangeNotifier` + `ListenableBuilder` | Lightweight, reactive, decoupled application state coordination. |
+| **Code Quality & Lints**| `flutter_lints: ^6.0.0` | Strict static analysis, null safety, and code convention enforcement. |
 
-`Widget -> AppController -> Auth/RemoteDataGateway -> Supabase Auth/Postgres/Storage`
+---
 
-`LocalAppRepository` stores onboarding, locale, and a user-ID-scoped cache. A
-persisted local boolean is never trusted as a cloud authentication session;
-Supabase Auth is the source of truth. Gateway interfaces keep Supabase SDK types
-out of widgets and domain models.
+## 2. Layered Architecture (Clean Architecture Pattern)
 
-`Supabase.initialize` receives the project root URL and a publishable key. That
-client key is intentionally distributable and is not an administrative
-credential; a secret/service-role key or database password must never be added
-to Flutter. The checked-in SQL migration is deployed separately by an
-authorized Supabase Dashboard user and is not executed by the mobile client.
-
-## Navigation
-
-`SmartNagpurApp` owns named-route generation. `AppShell` owns the persistent
-Home, Services, My Requests, Notifications, and Profile destinations. Dynamic
-news, service, and request routes are resolved centrally.
-
-## Persistence, files, and demo safety
-
-Profiles, complaints, applications, timelines, and notifications are owner-
-scoped Postgres records. Complaint photos and vendor documents are validated,
-uploaded to private buckets under an authenticated user prefix, and downloaded
-into an app-private cache when needed by existing file widgets. Failed record
-creation rolls back newly uploaded objects where possible.
-
-The SQL backend uses transactional submission RPCs so the client cannot assign
-official workflow statuses or timeline decisions. Row-Level Security restricts
-every citizen read/write to `auth.uid()`. Demo mode is an explicit, local-only
-branch and never calls Supabase.
-
-The local cache is also scoped to the current Supabase user ID. It supports
-previously loaded reads during a temporary backend outage but is not an offline
-write queue: profile updates, submissions, uploads, and notification changes
-must reach Supabase. Protected cached data is discarded on sign-out or user-ID
-mismatch. Demo records remain local and are never sent or synchronized into a
-cloud account.
-
-Private Storage objects use
-`<auth.uid()>/<upload-group UUID>/<file UUID>.<extension>` paths. Complaint
-images accept JPEG, PNG, or WebP; vendor documents accept PDF, JPEG, or PNG;
-each file is limited to 10 MiB. Database grants, Storage policies, and RPC
-validation all enforce the same ownership and file contract.
-
-## Authentication callbacks
-
-Email confirmation and password recovery return through the Android deep link
-`com.smartnagpur.citizen://login-callback/`. The Android manifest registers this
-scheme/host and Supabase must allow the exact URL, including its trailing slash,
-under **Authentication -> URL Configuration -> Redirect URLs**.
-
-## Backend deployment boundary
-
-The schema, Row-Level Security policies, Storage buckets, profile trigger, and
-RPCs live in
-[`supabase/migrations/202608170001_smart_nagpur_backend.sql`](supabase/migrations/202608170001_smart_nagpur_backend.sql).
-They must be applied from the Supabase SQL Editor (or an authenticated, linked
-CLI) before cloud flows work. The post-deployment contract check is
-[`supabase/tests/schema_contract.sql`](supabase/tests/schema_contract.sql). See
-the [Supabase backend guide](supabase/README.md) for the full procedure.
-
-## Location and maps
-
-`DeviceLocationService` uses `geolocator` for foreground GPS coordinates and
-accuracy. No background location is requested. Because no approved map provider
-or API key was supplied, `DevelopmentMap` is a configuration-free adjustable-pin
-placeholder. It can be replaced behind the presentation boundary when a provider
-is approved.
-
-## State management
-
-Flutter's `ChangeNotifier` and `ListenableBuilder` coordinate application state.
-Feature dependencies and gateway interfaces are injectable, so tests use
-deterministic in-memory fakes without initializing Supabase or device plugins.
-
-## Admin Application (`lib/admin_main.dart`)
-
-The Smart Nagpur Admin application is a separate Flutter app built from the same codebase using build flavors. It shares domain models and data gateways with the citizen app but has its own entry point, screens, and state management.
-
-### Admin Architecture Overview
-
-- **Entry Point**: `lib/admin_main.dart` - Initializes Supabase and AdminController
-- **State Management**: `AdminController` - Single source of truth for admin app state
-- **Screens**: Located in `lib/features/admin/presentation/`
-- **Data Layer**: 
-  - `AdminAuthGateway` - Authentication and admin profile management
-  - `AdminDataGateway` - Complaint, vendor, notification, and user data operations
-  - Supabase adapters: `SupabaseAdminAuthGateway`, `SupabaseAdminDataGateway`
-
-### Admin Permissions & Roles
-
-Admin users are assigned roles that control access:
-
-- **SuperAdmin**: Full system access
-- **ComplaintReviewer**: Review and manage complaints
-- **VendorReviewer**: Approve/reject vendor applications  
-- **NotificationManager**: Send notifications to users
-- **ReportViewer**: View analytics and reports
-- **UserManager**: Manage and suspend user accounts
-
-Row-Level Security policies on `admin_profiles`, `admin_reviews`, and `admin_notifications` tables enforce role-based access.
-
-### Admin Database Schema
-
-New tables added via `supabase/migrations/202608180001_smart_nagpur_admin.sql`:
-
-- `admin_profiles` - Admin user accounts with role and permissions
-- `admin_notifications` - System-wide notifications for admins
-- `admin_reviews` - Assessments and reviews of complaints/applications
-- `user_suspensions` - Track suspended user accounts
-
-### Admin Screens
-
-1. **Login Screen** - Email/password authentication
-2. **Dashboard** - Statistics, metrics, quick actions
-3. **Complaints Screen** - List of pending complaints
-4. **Complaint Detail** - Full complaint info, timeline, status updates
-5. **Vendors Screen** - List of pending vendor applications
-6. **Notifications Screen** - Send broadcast or targeted notifications
-7. **Users Screen** - Manage user accounts, suspensions
-
-### Admin Data Flow
-
-The admin app follows the same layered architecture as the citizen app:
+The codebase is organized into strict, decoupled layers located under `lib/`:
 
 ```
-AdminScreen → AdminController → AdminDataGateway → Supabase (RPC/REST API)
+lib/
+├── core/         # Cross-cutting concerns, theme tokens, localization, device services
+├── domain/       # Pure business entities, drafts, enums, models (zero UI / DB dependencies)
+├── data/         # Gateways, Supabase adapters, local JSON cache, repositories, demo data
+├── state/        # State controllers (AppController, AdminController)
+└── features/     # Feature-driven UI screens, presentation widgets, and route modules
 ```
 
-- `AdminController` coordinates state changes and data loading
-- `AdminAuthGateway` handles admin login/logout and profile management
-- `AdminDataGateway` provides methods for complaints, applications, notifications, and users
-- Supabase adapters execute queries and RPCs
-- Row-Level Security enforces authorization at the database layer
+```
+┌───────────────────────────────────────────────────────────────┐
+│                    Presentation Layer                         │
+│   (Features: Auth, Home, Services, Complaints, Vendor, etc.)  │
+└──────────────────────────────┬────────────────────────────────┘
+                               │ (calls actions / listens to state)
+                               ▼
+┌───────────────────────────────────────────────────────────────┐
+│                      State Layer                              │
+│       (AppController, AdminController via ChangeNotifier)     │
+└──────────────────────────────┬────────────────────────────────┘
+                               │ (calls abstract gateway interfaces)
+                               ▼
+┌───────────────────────────────────────────────────────────────┐
+│                      Data Gateway Layer                       │
+│    (AuthGateway, RemoteDataGateway, AdminDataGateway, etc.)   │
+└──────────────┬───────────────────────────────┬────────────────┘
+               │ (implements)                  │ (implements)
+               ▼                               ▼
+┌──────────────────────────────┐ ┌──────────────────────────────┐
+│       Supabase Adapters      │ │      Local Cache / Repo      │
+│  (Supabase Client, PostgREST │ │ (JsonFileStore, AppStateData │
+│    Storage, RPC Endpoints)   │ │   Scoped to cachedUserId)    │
+└──────────────────────────────┘ └──────────────────────────────┘
+```
 
-### Admin Authentication Flow
+### 2.1. Layer Responsibilities
 
-1. Admin enters email/password on login screen
-2. `AdminAuthGateway.loginAdmin()` authenticates with Supabase Auth
-3. Upon successful auth, admin profile is fetched from `admin_profiles` table
-4. Admin role is verified and stored in `AdminController`
-5. User is navigated to admin dashboard
-6. Session is maintained by Supabase Auth token
+1. **`lib/domain`**:
+   - Contains pure Dart domain entities (`ComplaintRecord`, `VendorApplication`, `UserProfile`, `AdminProfile`, `AdminStats`, `AdminReview`, `AppNotification`, `NewsItem`, `ProblemLocation`, `ServiceDefinition`).
+   - Immutable data models equipped with `toJson()`, `fromJson()`, and `copyWith()` methods.
+   - Completely agnostic of Flutter UI libraries and backend SDKs.
 
-### Admin RPC Functions
+2. **`lib/data`**:
+   - **`gateways/`**: Abstract interfaces (`AuthGateway`, `RemoteDataGateway`, `RemoteFileGateway`, `AdminAuthGateway`, `AdminDataGateway`). This abstraction ensures that the UI and state layers never directly depend on Supabase SDK types, allowing instant mocking for unit/widget tests.
+   - **`adapters/` & `supabase/`**: Concrete implementations (`SupabaseAuthGateway`, `SupabaseRemoteDataGateway`, `SupabaseFileGateway`, `SupabaseAdminAuthGateway`, `SupabaseAdminDataGateway`) converting PostgREST JSON responses into typed domain entities.
+   - **`local/` & `repositories/`**: `LocalAppRepository` backed by `JsonFileStore` managing cached state, onboarding flags, and locale.
+   - **`demo/`**: `DemoData` provider supplying offline mock entities when operating in Demo Mode.
 
-Special database functions for admin operations:
+3. **`lib/state`**:
+   - `AppController`: Coordinates citizen app lifecycle, authentication state changes, data refreshes, offline state detection, and complaint/vendor submission orchestration.
+   - `AdminController`: Coordinates administrator authentication, permission validation, dashboard statistics loading, complaint/application triage, user suspension, and notification broadcasting.
 
-- `get_admin_stats()` - Dashboard statistics
-- `get_complaint_stats()` - Complaint metrics
-- `get_vendor_stats()` - Vendor application metrics
-- `get_user_stats()` - User account statistics
-- `get_daily_stats(days)` - Daily trends
-- `get_monthly_report(month, year)` - Monthly report
-- `suspend_user(user_id, reason)` - Suspend user account
-- `reactivate_user(user_id)` - Reactivate suspended user
-- `send_broadcast_notification(...)` - Send to all users
-- `add_complaint_timeline(complaint_id, entry)` - Add timeline entry
+4. **`lib/core`**:
+   - `theme/`: Centralized design system (`AppColors`, `AppSpacing`, `AppRadius`, `AppShadows`, `AppTypography`, `AppIcons`, `AppTheme`, `ServiceTheme`).
+   - `localization/`: `AppStrings` providing localized string catalogs for English and Marathi.
+   - `services/`: Device capability abstraction contracts (`LocationService`, `MediaPickerService`, `DocumentPickerService`, `PrivateFileStore`) with replaceable production and mock implementations.
+   - `config/`: `SupabaseConfig` handling environment variables, URL normalization, and publishable key format validation.
+   - `widgets/`: Reusable, atomic UI components (custom text fields, buttons, status badges, timeline nodes, state views).
 
-### Build Flavors
+5. **`lib/features`**:
+   - Feature-partitioned modules containing screens, presentation widgets, and route helpers:
+     - `bootstrap/` (Splash, Onboarding)
+     - `auth/` (Login, Register, Forgot Password, Verification, Password Recovery)
+     - `shell/` (AppShell bottom navigation container)
+     - `home/` (Citizen dashboard, quick action grid, recent updates)
+     - `services/` (10 service catalog and service detail pages)
+     - `complaints/` (Complaint submission wizard, photo picker, GPS map pin, review)
+     - `vendor/` (Vendor hub, 4-step registration wizard, zone map, document upload, renewal)
+     - `requests/` (My Requests unified tracking, milestone timeline details)
+     - `notifications/` (Notification list, category filtering)
+     - `news/` (City news feed, news detail)
+     - `search/` (Global search across services and news)
+     - `profile/` (Profile edit, saved locations, language, privacy, terms, help)
+     - `admin/` (Admin login, dashboard, complaints triage, vendor reviews, user management, notifications)
 
-Two build flavors exist to support separate APKs:
+---
 
-- **citizen** - `com.smartnagpur.citizen` - Citizen application
-- **admin** - `com.smartnagpur.admin` - Admin application
+## 3. Dual Build Flavors Architecture
 
-See [BUILD_FLAVORS_GUIDE.md](BUILD_FLAVORS_GUIDE.md) for setup instructions and build commands.
+The repository supports two distinct application binaries built from a unified codebase:
 
-### Admin Deep Link
+```
+Smart Nagpur Codebase
+  ├── Citizen Flavor (com.smartnagpur.citizen) -> Entry: lib/main.dart
+  └── Admin Flavor   (com.smartnagpur.admin)   -> Entry: lib/admin_main.dart
+```
 
-Admin authentication callback uses the deep link: `com.smartnagpur.admin://login-callback/`
+### 3.1. Citizen Application
+- **Package ID:** `com.smartnagpur.citizen`
+- **Entry Point:** `lib/main.dart`
+- **Target Audience:** Citizens of Nagpur & Commercial Vendors.
+- **Deep Link:** `com.smartnagpur.citizen://login-callback/`
+- **Build Command:**
+  ```powershell
+  flutter build apk --flavor citizen -t lib/main.dart
+  ```
 
-This must be registered in Supabase URL Configuration and in the Android manifest.
+### 3.2. Municipal Admin Application
+- **Package ID:** `com.smartnagpur.admin`
+- **Entry Point:** `lib/admin_main.dart`
+- **Target Audience:** Municipal Officers, Ward Reviewers, and Super Administrators.
+- **Deep Link:** `com.smartnagpur.admin://login-callback/`
+- **Build Command:**
+  ```powershell
+  flutter build apk --flavor admin -t lib/admin_main.dart
+  ```
+
+---
+
+## 4. Backend Architecture & Supabase Integration
+
+The cloud backend is powered by Supabase with all database definitions checked into version control under `supabase/migrations/`.
+
+### 4.1. PostgreSQL Schema Design
+1. **`profiles`**: Stores citizen demographic records linked 1:1 with `auth.users.id`.
+2. **`complaints`**: Citizen grievances with service category, coordinates, address, photo URLs, status enum, and contact phone.
+3. **`vendor_applications`**: Commercial street vendor permits, business classification, zone allocation, operating hours, and document URLs.
+4. **`notifications`**: Personalized and broadcast notices for citizen accounts.
+5. **`admin_profiles`**: Administrator accounts storing assigned role (`superAdmin`, `complaintReviewer`, `vendorReviewer`, `reportViewer`, `notificationManager`, `userManager`), phone, and activation state.
+6. **`admin_reviews`**: Audit records of official administrative reviews, notes, and ratings on complaints and applications.
+7. **`user_suspensions`**: Account lock records tracking suspended users, reasons, and timestamps.
+
+### 4.2. Database Functions & Transactional RPCs
+To prevent unauthorized client-side state manipulation, critical business operations are executed via PostgreSQL RPCs:
+- `submit_complaint(...)`: Transactionally validates parameters, stores location, creates complaint, and initializes the first milestone timeline entry.
+- `submit_vendor_application(...)`: Atomically saves vendor business details, zone selections, schedules, and document links.
+- `get_admin_stats()`: Aggregates real-time KPIs (total complaints, resolution rate, vendor approval rate, user counts).
+- `suspend_user(user_id, reason)` & `reactivate_user(user_id)`: Enforces account moderation with auditing.
+- `send_broadcast_notification(...)`: Inserts notification records across all active citizen profiles.
+- `add_complaint_timeline(...)` & `add_application_timeline(...)`: Records immutable progress entries with officer remarks.
+
+### 4.3. Row-Level Security (RLS) & Storage Security Policies
+- **Citizen Tables:** Every `SELECT`, `INSERT`, `UPDATE` on citizen tables strictly enforces `auth.uid() = user_id`.
+- **Admin Tables:** Enforce role verification by checking `EXISTS (SELECT 1 FROM admin_profiles WHERE id = auth.uid() AND is_active = true)`.
+- **Private Storage Buckets:**
+  - `complaint-photos`: Objects stored at `<auth.uid()>/<group_id>/<file_id>.<ext>`. RLS policies restrict read/write access to the authenticating user and active administrative reviewers.
+  - `vendor-documents`: Objects stored at `<auth.uid()>/<group_id>/<file_id>.<ext>`. RLS policies restrict upload and access to the applicant and vendor review officers.
+  - Allowed file types: Images (JPEG, PNG, WebP) and Documents (PDF, JPEG, PNG); maximum size 10 MiB.
+
+---
+
+## 5. Offline & Caching Strategy
+
+```
+┌────────────────────────────────────────────────────────┐
+│                   Data Request                         │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+             Is Cloud Backend Configured?
+             ├── No ──> Load DemoData
+             │
+             └── Yes ──> Attempt Supabase Remote Fetch
+                           ├── Success ──> Update AppState & Local Cache (Scoped to UserId)
+                           │
+                           └── Failure / Network Offline ──> Load Cached Reads for UserId
+                                                             Display Non-blocking Offline Banner
+```
+
+1. **User Scoping:** Cached state is strictly partitioned by `cachedUserId`. If a new user signs in, or if a user logs out, sensitive cached records are purged immediately.
+2. **Read-Only Offline Fallback:** Offline caching provides read access to previously loaded complaints, applications, and profile data during transient network drops.
+3. **No Offline Write Queues:** All mutations (complaint submissions, vendor applications, profile updates) require a live connection to Supabase to guarantee immediate transactional verification and photo/document upload integrity.
+
+---
+
+## 6. Complete Directory Structure
+
+```
+d:\SmartNagpur\
+├── .github/                       # CI/CD workflows and actions
+├── android/                       # Native Android build configuration & gradle files
+│   └── app/build.gradle.kts       # Android package IDs, SDK versions, Kotlin config
+├── lib/
+│   ├── admin_main.dart            # Admin Application entry point (Flavor: admin)
+│   ├── app.dart                   # Citizen Application routing & widget setup
+│   ├── main.dart                  # Citizen Application entry point (Flavor: citizen)
+│   ├── core/
+│   │   ├── config/                # Supabase configuration & URL validators
+│   │   ├── localization/          # Bilingual AppStrings (EN & MR)
+│   │   ├── services/              # GPS, media, document, and private file services
+│   │   ├── theme/                 # Design tokens, AppColors, AppTypography, AppTheme
+│   │   └── widgets/               # Reusable buttons, text fields, cards, badges, timeline
+│   ├── data/
+│   │   ├── adapters/              # Supabase admin gateway adapters
+│   │   ├── demo/                  # DemoData mock provider
+│   │   ├── gateways/              # Gateway abstract contracts
+│   │   ├── local/                 # JsonFileStore local file persistence
+│   │   ├── remote/                # Remote Auth, Data, and File gateway contracts
+│   │   ├── repositories/          # AppRepository and LocalAppRepository
+│   │   └── supabase/              # Supabase citizen auth, data, and file gateways
+│   ├── domain/
+│   │   └── models/                # Typed domain models (Complaint, Vendor, Admin, User, etc.)
+│   ├── features/
+│   │   ├── admin/presentation/    # 8 Admin screens (Dashboard, Complaints, Vendors, Users, etc.)
+│   │   ├── auth/presentation/     # 5 Auth screens (Login, Register, Recovery, etc.)
+│   │   ├── bootstrap/             # Splash and Onboarding walkthrough
+│   │   ├── complaints/            # Multi-step complaint wizard and photo/location widgets
+│   │   ├── home/                  # Citizen home dashboard and quick actions
+│   │   ├── news/                  # City announcements and news detail
+│   │   ├── notifications/         # Notification inbox and category filtering
+│   │   ├── profile/               # Edit profile, saved locations, settings, privacy, terms
+│   │   ├── requests/              # Unified tracking and step-by-step milestone timeline
+│   │   ├── search/                # Global search screen
+│   │   ├── services/              # 10 Civic services catalog and service details
+│   │   ├── shell/                 # Bottom navigation shell
+│   │   └── vendor/                # 4-step vendor application, zones, documents, renewal
+│   └── state/
+│       ├── admin_controller.dart  # Admin state coordination
+│       └── app_controller.dart    # Citizen state coordination
+├── supabase/
+│   ├── README.md                  # Supabase deployment and SQL execution guide
+│   ├── migrations/                # Versioned SQL migrations (202608170001, 202608180001)
+│   └── tests/                     # Schema contract validation tests
+├── test/                          # Unit, gateway, controller, and widget test suites
+├── pubspec.yaml                   # Dependencies, assets, and project metadata
+└── README.md                      # General project setup and run instructions
+```

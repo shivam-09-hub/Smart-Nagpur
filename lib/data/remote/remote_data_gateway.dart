@@ -48,4 +48,8 @@ abstract interface class RemoteDataGateway {
   Future<void> markNotificationRead(String id);
 
   Future<void> markAllNotificationsRead();
+
+  void subscribeToLiveUpdates(void Function() onUpdate);
+
+  void unsubscribeFromLiveUpdates();
 }

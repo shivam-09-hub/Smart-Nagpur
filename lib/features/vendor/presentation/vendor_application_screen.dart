@@ -485,7 +485,7 @@ class _VendorApplicationScreenState extends State<VendorApplicationScreen> {
           _stepHeading(
             title: 'Business Location',
             description:
-                'Use GPS, search by address, or adjust the pin on the development map.',
+                'Use GPS, search by area, or adjust the pin directly on the interactive map.',
             icon: Icons.location_on_outlined,
           ),
           Container(
@@ -594,26 +594,20 @@ class _VendorApplicationScreenState extends State<VendorApplicationScreen> {
                   TextButton.icon(
                     onPressed: _useDevelopmentLocation,
                     icon: const Icon(Icons.map_outlined),
-                    label: const Text('Start with central Nagpur'),
+                    label: const Text('Start with Nagpur center map'),
                   ),
                 ],
               ),
             )
           else ...[
-            Semantics(
-              label:
-                  'Development map. Tap to adjust the business location pin.',
-              child: ExcludeSemantics(
-                child: DevelopmentMap(
-                  location: _location!,
-                  onChanged: (location) {
-                    setState(() {
-                      _location = location;
-                      _locationAddressController.text = location.address;
-                    });
-                  },
-                ),
-              ),
+            DevelopmentMap(
+              location: _location!,
+              onChanged: (location) {
+                setState(() {
+                  _location = location;
+                  _locationAddressController.text = location.address;
+                });
+              },
             ),
             const SizedBox(height: AppSpacing.md),
             Container(

@@ -67,14 +67,17 @@ class AppNotification {
         orElse: () => NotificationCategory.cityUpdates,
       ),
       createdAt:
-          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+          DateTime.tryParse(
+            (json['created_at'] ?? json['createdAt']) as String? ?? '',
+          ) ??
           DateTime.now(),
       destination: NotificationDestination.values.firstWhere(
         (value) => value.name == json['destination'],
         orElse: () => NotificationDestination.none,
       ),
-      referenceId: json['referenceId'] as String?,
-      isRead: json['isRead'] as bool? ?? false,
+      referenceId:
+          (json['reference_id'] ?? json['referenceId']) as String?,
+      isRead: (json['is_read'] ?? json['isRead']) as bool? ?? false,
       isDemo: json['isDemo'] as bool? ?? true,
     );
   }
