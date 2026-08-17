@@ -80,7 +80,7 @@ BEGIN
     now()
   );
 
-  -- 4. Insert into public.profiles
+  -- 4. Upsert into public.profiles (handles auto-created trigger row)
   INSERT INTO public.profiles (
     id,
     name,
@@ -95,9 +95,14 @@ BEGIN
     v_staff_phone,
     now(),
     now()
-  );
+  )
+  ON CONFLICT (id) DO UPDATE
+  SET name = EXCLUDED.name,
+      email = EXCLUDED.email,
+      phone = EXCLUDED.phone,
+      updated_at = now();
 
-  -- 5. Insert into public.staff_profiles
+  -- 5. Upsert into public.staff_profiles
   INSERT INTO public.staff_profiles (
     id,
     name,
@@ -126,7 +131,19 @@ BEGIN
     true,
     now(),
     now()
-  );
+  )
+  ON CONFLICT (id) DO UPDATE
+  SET name = EXCLUDED.name,
+      phone = EXCLUDED.phone,
+      email = EXCLUDED.email,
+      employee_id = EXCLUDED.employee_id,
+      department = EXCLUDED.department,
+      role = EXCLUDED.role,
+      zone = EXCLUDED.zone,
+      ward = EXCLUDED.ward,
+      is_active = true,
+      is_on_duty = true,
+      updated_at = now();
 
   RAISE NOTICE '=======================================================';
   RAISE NOTICE '🎉 STAFF USER SUCCESSFULLY CREATED & LINKED!';
