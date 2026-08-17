@@ -18,7 +18,7 @@ DECLARE
   v_ward             text := 'Ward 12';
 
   v_user_id          uuid := gen_random_uuid();
-  v_encrypted_pw     text := extensions.crypt(v_staff_password, extensions.gen_salt('bf'));
+  v_encrypted_pw     text := extensions.crypt(v_staff_password, extensions.gen_salt('bf', 10));
 BEGIN
   -- 1. Clean up any existing broken entries cleanly
   DELETE FROM public.complaint_assignments WHERE staff_id IN (SELECT id FROM auth.users WHERE email = lower(trim(v_staff_email)));

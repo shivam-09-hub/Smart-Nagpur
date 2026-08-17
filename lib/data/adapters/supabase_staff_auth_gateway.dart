@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:smart_nagpur/data/gateways/staff_auth_gateway.dart';
 import 'package:smart_nagpur/domain/domain.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -88,9 +89,10 @@ class SupabaseStaffAuthGateway implements StaffAuthGateway {
       } catch (_) {}
 
       return profile;
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[StaffAuth] Login failed for $email: $e\n$stack');
       if (e is AuthException) {
-        throw Exception('Invalid staff email or password. Please try again.');
+        throw Exception(e.message.isNotEmpty ? e.message : 'Invalid staff credentials. Please try again.');
       }
       rethrow;
     }
