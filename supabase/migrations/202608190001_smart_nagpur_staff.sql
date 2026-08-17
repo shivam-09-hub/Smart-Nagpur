@@ -1239,11 +1239,11 @@ CREATE OR REPLACE FUNCTION public.enforce_staff_profile_update_safety()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 BEGIN
-  -- If caller is an active Admin, permit administrative modifications
-  IF public.is_active_admin() THEN
+  -- If executed in direct SQL / seed context (auth.uid() IS NULL) or by an active Admin, permit administrative modifications
+  IF auth.uid() IS NULL OR public.is_active_admin() OR current_user IN ('postgres', 'supabase_admin') THEN
     RETURN NEW;
   END IF;
 
