@@ -1,0 +1,491 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:smart_nagpur/core/theme/theme.dart';
+import 'package:smart_nagpur/domain/domain.dart';
+import 'package:smart_nagpur/state/admin_controller.dart';
+
+class AdminDashboardScreen extends StatefulWidget {
+  const AdminDashboardScreen({required this.controller, super.key});
+
+  final AdminController controller;
+
+  @override
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+}
+
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.loadAdminStats();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Admin Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: widget.controller.loadAdminStats,
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'logout') {
+                widget.controller.logoutAdmin();
+                Navigator.of(context).pushReplacementNamed('/admin/login');
+              } else if (value == 'profile') {
+                Navigator.of(context).pushNamed('/admin/profile');
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.person),
+                    SizedBox(width: 8),
+                    Text('Profile'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Logout', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: ListenableBuilder(
+        listenable: widget.controller,
+        builder: (context, _) {
+          if (widget.controller.isLoading &&
+              widget.controller.adminStats == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final stats = widget.controller.adminStats;
+          if (stats == null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(widget.controller.error ?? 'Failed to load stats'),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: widget.controller.loadAdminStats,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: widget.controller.loadAdminStats,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  _buildHeader(),
+                  const SizedBox(height: 24),
+
+                  // Key metrics
+                  _buildMetricsSection(stats),
+                  const SizedBox(height: 24),
+
+                  // Complaint metrics
+                  if (widget.controller.canReviewComplaints)
+                    _buildComplaintSection(stats),
+                  const SizedBox(height: 24),
+
+                  // Vendor metrics
+                  if (widget.controller.canReviewVendors)
+                    _buildVendorSection(stats),
+                  const SizedBox(height: 24),
+
+                  // Quick actions
+                  _buildQuickActions(),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Welcome back, ${widget.controller.currentAdmin?.name}',
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${widget.controller.currentAdmin?.role.label} • Last login: ${_formatDate(widget.controller.currentAdmin?.lastLoginAt)}',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricsSection(AdminStats stats) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Overview',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCard(
+                title: 'Total Users',
+                value: stats.totalUsers.toString(),
+                subtitle: '${stats.activeUsers} active',
+                icon: Icons.people,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildMetricCard(
+                title: 'Total Complaints',
+                value: stats.totalComplaints.toString(),
+                subtitle: '${stats.pendingComplaints} pending',
+                icon: Icons.report,
+                color: AppColors.warning,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCard(
+                title: 'Vendor Apps',
+                value: stats.totalVendorApplications.toString(),
+                subtitle: '${stats.pendingApplications} pending',
+                icon: Icons.store,
+                color: AppColors.info,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildMetricCard(
+                title: 'Notifications',
+                value: stats.totalNotifications.toString(),
+                subtitle: '${stats.unreadNotifications} unread',
+                icon: Icons.notifications,
+                color: AppColors.secondary,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildComplaintSection(AdminStats stats) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Complaint Management',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildStatItem(
+                      'Submitted',
+                      stats.totalComplaints.toString(),
+                      AppColors.primary,
+                    ),
+                    _buildStatItem(
+                      'Pending',
+                      stats.pendingComplaints.toString(),
+                      AppColors.warning,
+                    ),
+                    _buildStatItem(
+                      'Resolved',
+                      stats.resolvedComplaints.toString(),
+                      AppColors.success,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                LinearProgressIndicator(
+                  value: stats.complaintResolutionRate / 100,
+                  minHeight: 8,
+                  backgroundColor: Colors.grey[300],
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.success),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Resolution Rate: ${stats.complaintResolutionRate.toStringAsFixed(1)}%',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVendorSection(AdminStats stats) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Vendor Management',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildStatItem(
+                      'Total',
+                      stats.totalVendorApplications.toString(),
+                      AppColors.primary,
+                    ),
+                    _buildStatItem(
+                      'Pending',
+                      stats.pendingApplications.toString(),
+                      AppColors.warning,
+                    ),
+                    _buildStatItem(
+                      'Approved',
+                      stats.approvedApplications.toString(),
+                      AppColors.success,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                LinearProgressIndicator(
+                  value: stats.vendorApprovalRate / 100,
+                  minHeight: 8,
+                  backgroundColor: Colors.grey[300],
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.success),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Approval Rate: ${stats.vendorApprovalRate.toStringAsFixed(1)}%',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            if (widget.controller.canReviewComplaints)
+              _buildActionButton(
+                icon: Icons.assignment_turned_in,
+                label: 'Review Complaints',
+                color: AppColors.warning,
+                onTap: () =>
+                    Navigator.of(context).pushNamed('/admin/complaints'),
+              ),
+            if (widget.controller.canReviewVendors)
+              _buildActionButton(
+                icon: Icons.store_outlined,
+                label: 'Review Vendors',
+                color: AppColors.info,
+                onTap: () => Navigator.of(context).pushNamed('/admin/vendors'),
+              ),
+            if (widget.controller.canManageNotifications)
+              _buildActionButton(
+                icon: Icons.notifications_active,
+                label: 'Send Notification',
+                color: AppColors.secondary,
+                onTap: () =>
+                    Navigator.of(context).pushNamed('/admin/notifications'),
+              ),
+            if (widget.controller.canManageUsers)
+              _buildActionButton(
+                icon: Icons.people_alt,
+                label: 'Manage Users',
+                color: AppColors.primary,
+                onTap: () => Navigator.of(context).pushNamed('/admin/users'),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        value,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: color,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(icon, size: 32, color: color.withValues(alpha: 0.5)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: color),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Never';
+    return DateFormat('dd MMM, hh:mm a').format(date);
+  }
+}
