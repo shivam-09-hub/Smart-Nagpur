@@ -18,7 +18,11 @@ class _AdminComplaintsScreenState extends State<AdminComplaintsScreen> {
   @override
   void initState() {
     super.initState();
-    widget.controller.loadPendingComplaints();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        widget.controller.loadPendingComplaints();
+      }
+    });
   }
 
   @override

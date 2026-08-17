@@ -18,7 +18,11 @@ class _AdminVendorsScreenState extends State<AdminVendorsScreen> {
   @override
   void initState() {
     super.initState();
-    widget.controller.loadPendingApplications();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        widget.controller.loadPendingApplications();
+      }
+    });
   }
 
   @override

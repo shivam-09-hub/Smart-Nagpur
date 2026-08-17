@@ -23,7 +23,11 @@ class _AdminOperationsScreenState extends State<AdminOperationsScreen>
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
-    widget.controller.loadOperationsDashboard();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        widget.controller.loadOperationsDashboard();
+      }
+    });
   }
 
   @override

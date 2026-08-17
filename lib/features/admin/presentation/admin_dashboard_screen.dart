@@ -17,8 +17,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    widget.controller.loadAdminStats();
-    widget.controller.loadOperationsDashboard();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        widget.controller.loadAdminStats();
+        widget.controller.loadOperationsDashboard();
+      }
+    });
   }
 
   Future<void> _refreshAll() async {

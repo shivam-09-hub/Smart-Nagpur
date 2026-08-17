@@ -20,7 +20,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   @override
   void initState() {
     super.initState();
-    widget.controller.loadUsers();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        widget.controller.loadUsers();
+      }
+    });
   }
 
   @override
