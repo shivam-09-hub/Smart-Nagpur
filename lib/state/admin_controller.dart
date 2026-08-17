@@ -605,6 +605,46 @@ class AdminController extends ChangeNotifier {
     loadOperationsDashboard(filter: _operationsFilter);
   }
 
+  Future<bool> createStaff({
+    required String name,
+    required String email,
+    required String employeeId,
+    required StaffDepartment department,
+    StaffRole role = StaffRole.fieldWorker,
+    String phone = '',
+    String zone = 'ALL',
+    String ward = '',
+    String? password,
+  }) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      await dataGateway.createStaff(
+        name: name,
+        email: email,
+        employeeId: employeeId,
+        department: department,
+        role: role,
+        phone: phone,
+        zone: zone,
+        ward: ward,
+        password: password,
+      );
+
+      await loadOperationsDashboard();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();

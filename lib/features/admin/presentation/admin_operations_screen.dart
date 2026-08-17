@@ -20,6 +20,9 @@ class _AdminOperationsScreenState extends State<AdminOperationsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     widget.controller.loadOperationsDashboard();
   }
 
@@ -35,6 +38,11 @@ class _AdminOperationsScreenState extends State<AdminOperationsScreen>
       appBar: AppBar(
         title: const Text('Field Operations & Verification'),
         actions: [
+          IconButton(
+            tooltip: 'Add Staff Member',
+            icon: const Icon(Icons.person_add_alt_1_rounded),
+            onPressed: _showCreateStaffDialog,
+          ),
           IconButton(
             tooltip: 'Refresh',
             icon: const Icon(Icons.refresh_rounded),
@@ -146,6 +154,13 @@ class _AdminOperationsScreenState extends State<AdminOperationsScreen>
             ],
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        icon: const Icon(Icons.person_add_alt_1_rounded),
+        label: const Text('Add Staff Member'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        onPressed: _showCreateStaffDialog,
       ),
     );
   }
@@ -753,6 +768,283 @@ class _AdminOperationsScreenState extends State<AdminOperationsScreen>
           ),
         ],
       ),
+    );
+  }
+
+  void _showCreateStaffDialog() {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController(text: 'StaffPassword123!');
+    final phoneController = TextEditingController();
+    final employeeIdController = TextEditingController();
+    final zoneController = TextEditingController(text: 'Dharampeth');
+    final wardController = TextEditingController(text: 'Ward 12');
+
+    StaffDepartment selectedDept = StaffDepartment.road;
+    StaffRole selectedRole = StaffRole.fieldWorker;
+    bool isSubmitting = false;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: AppSpacing.lg,
+                right: AppSpacing.lg,
+                top: AppSpacing.lg,
+                bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.xl,
+              ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.infoSoft,
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            child: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.primary),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Add Field Staff Account',
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                ),
+                                Text(
+                                  'Create login credentials & assign municipal department',
+                                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // Full Name
+                      TextFormField(
+                        controller: nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Staff Full Name *',
+                          hintText: 'e.g. Ramesh Sharma',
+                          prefixIcon: Icon(Icons.person_outline),
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter full name' : null,
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Email
+                      TextFormField(
+                        controller: emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email Address *',
+                          hintText: 'e.g. ramesh.staff@gmail.com',
+                          prefixIcon: Icon(Icons.email_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Please enter email';
+                          if (!v.contains('@') || !v.contains('.')) return 'Enter a valid email';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Password
+                      TextFormField(
+                        controller: passwordController,
+                        decoration: const InputDecoration(
+                          labelText: 'Password *',
+                          hintText: 'Minimum 6 characters',
+                          prefixIcon: Icon(Icons.lock_outline),
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) => (v == null || v.length < 6) ? 'Password must be at least 6 characters' : null,
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Phone & Employee ID in a Row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: phoneController,
+                              keyboardType: TextInputType.phone,
+                              decoration: const InputDecoration(
+                                labelText: 'Phone',
+                                hintText: '+919876500001',
+                                prefixIcon: Icon(Icons.phone_outlined),
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextFormField(
+                              controller: employeeIdController,
+                              decoration: const InputDecoration(
+                                labelText: 'Employee ID',
+                                hintText: 'Auto / NMC-RD-101',
+                                prefixIcon: Icon(Icons.badge_outlined),
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Department Dropdown
+                      DropdownButtonFormField<StaffDepartment>(
+                        initialValue: selectedDept,
+                        decoration: const InputDecoration(
+                          labelText: 'Department *',
+                          prefixIcon: Icon(Icons.domain_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: StaffDepartment.road, child: Text('Roads & Potholes (ROAD)')),
+                          DropdownMenuItem(value: StaffDepartment.waste, child: Text('Waste Management (WASTE)')),
+                          DropdownMenuItem(value: StaffDepartment.water, child: Text('Water Supply (WATER)')),
+                          DropdownMenuItem(value: StaffDepartment.vendor, child: Text('Street Vendors (VENDOR)')),
+                          DropdownMenuItem(value: StaffDepartment.general, child: Text('General Civic (GENERAL)')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setModalState(() => selectedDept = val);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Role Dropdown
+                      DropdownButtonFormField<StaffRole>(
+                        initialValue: selectedRole,
+                        decoration: const InputDecoration(
+                          labelText: 'Staff Role *',
+                          prefixIcon: Icon(Icons.admin_panel_settings_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: StaffRole.fieldWorker, child: Text('Field Worker / Technician')),
+                          DropdownMenuItem(value: StaffRole.supervisor, child: Text('Department Supervisor')),
+                          DropdownMenuItem(value: StaffRole.officer, child: Text('Municipal Officer')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setModalState(() => selectedRole = val);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Zone & Ward in a Row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: zoneController,
+                              decoration: const InputDecoration(
+                                labelText: 'Zone',
+                                hintText: 'Dharampeth',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextFormField(
+                              controller: wardController,
+                              decoration: const InputDecoration(
+                                labelText: 'Ward',
+                                hintText: 'Ward 12',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // Submit Button
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                        ),
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                if (!formKey.currentState!.validate()) return;
+                                final navigator = Navigator.of(sheetContext);
+                                final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+                                setModalState(() => isSubmitting = true);
+
+                                final success = await widget.controller.createStaff(
+                                  name: nameController.text.trim(),
+                                  email: emailController.text.trim(),
+                                  password: passwordController.text,
+                                  phone: phoneController.text.trim(),
+                                  employeeId: employeeIdController.text.trim(),
+                                  department: selectedDept,
+                                  role: selectedRole,
+                                  zone: zoneController.text.trim().isEmpty ? 'ALL' : zoneController.text.trim(),
+                                  ward: wardController.text.trim(),
+                                );
+
+                                navigator.pop();
+                                scaffoldMessenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      success
+                                          ? 'Staff account for ${nameController.text} created successfully!'
+                                          : (widget.controller.error ?? 'Failed to create staff account'),
+                                    ),
+                                    backgroundColor: success ? AppColors.success : AppColors.error,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              },
+                        child: isSubmitting
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('Create Staff Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

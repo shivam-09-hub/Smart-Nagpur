@@ -600,34 +600,60 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
     String? password,
   }) async {
     try {
-      final response = await client.functions.invoke(
-        'admin-create-staff',
-        body: {
-          'name': name,
-          'email': email,
-          'employee_id': employeeId,
-          'department': department.code,
-          'role': role.code,
-          'phone': phone,
-          'zone': zone,
-          'ward': ward,
-          if (password != null && password.isNotEmpty) 'password': password,
+      // 1. Primary: Native PostgreSQL RPC
+      final rpcRes = await client.rpc(
+        'admin_create_staff_account',
+        params: {
+          'p_name': name.trim(),
+          'p_email': email.trim().toLowerCase(),
+          'p_password': password ?? 'StaffPassword123!',
+          'p_phone': phone.trim(),
+          'p_employee_id': employeeId.trim(),
+          'p_department': department.code,
+          'p_role': role.code,
+          'p_zone': zone.trim(),
+          'p_ward': ward.trim(),
         },
       );
 
-      if (response.status != 201 && response.status != 200) {
-        final errorMsg = response.data is Map && (response.data as Map)['error'] != null
-            ? (response.data as Map)['error'].toString()
-            : 'Failed to provision staff member (HTTP ${response.status})';
-        throw Exception(errorMsg);
+      if (rpcRes is Map && rpcRes['staff'] != null) {
+        final staffMap = Map<String, dynamic>.from(rpcRes['staff'] as Map);
+        return StaffProfile.fromJson(staffMap);
       }
+    } catch (rpcError) {
+      // 2. Secondary: Edge Function Fallback
+      try {
+        final response = await client.functions.invoke(
+          'admin-create-staff',
+          body: {
+            'name': name,
+            'email': email,
+            'employee_id': employeeId,
+            'department': department.code,
+            'role': role.code,
+            'phone': phone,
+            'zone': zone,
+            'ward': ward,
+            if (password != null && password.isNotEmpty) 'password': password,
+          },
+        );
 
-      final data = response.data as Map<String, dynamic>;
-      final staffMap = data['staff'] as Map<String, dynamic>;
-      return StaffProfile.fromJson(staffMap);
-    } catch (e) {
-      rethrow;
+        if (response.status != 201 && response.status != 200) {
+          final errorMsg = response.data is Map && (response.data as Map)['error'] != null
+              ? (response.data as Map)['error'].toString()
+              : 'Failed to provision staff member (HTTP ${response.status})';
+          throw Exception(errorMsg);
+        }
+
+        final data = response.data as Map<String, dynamic>;
+        final staffMap = data['staff'] as Map<String, dynamic>;
+        return StaffProfile.fromJson(staffMap);
+      } catch (_) {
+        // Rethrow the primary RPC error message if edge function is not deployed
+        rethrow;
+      }
     }
+    throw Exception('Failed to create staff profile');
   }
 
   @override
