@@ -105,10 +105,12 @@ class MockAdminDataGateway implements AdminDataGateway {
   Future<List<StaffProfile>> getStaffMembers({
     StaffDepartment? department,
     bool? isActive,
+    bool? isOnDuty,
   }) async {
     return mockStaff.where((s) {
       if (department != null && s.department != department) return false;
       if (isActive != null && s.isActive != isActive) return false;
+      if (isOnDuty != null && s.isOnDuty != isOnDuty) return false;
       return true;
     }).toList();
   }

@@ -660,6 +660,7 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
   Future<List<StaffProfile>> getStaffMembers({
     StaffDepartment? department,
     bool? isActive,
+    bool? isOnDuty,
   }) async {
     try {
       var query = client.from('staff_profiles').select();
@@ -668,6 +669,9 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
       }
       if (isActive != null) {
         query = query.eq('is_active', isActive);
+      }
+      if (isOnDuty != null) {
+        query = query.eq('is_on_duty', isOnDuty);
       }
       final response = await query.order('created_at', ascending: false);
       return (response as List<dynamic>)

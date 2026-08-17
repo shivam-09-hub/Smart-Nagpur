@@ -294,7 +294,7 @@ class MockAdminDataGateway implements AdminDataGateway {
     String? password,
   }) async => throw UnimplementedError();
   @override
-  Future<List<StaffProfile>> getStaffMembers({StaffDepartment? department, bool? isActive}) async => [];
+  Future<List<StaffProfile>> getStaffMembers({StaffDepartment? department, bool? isActive, bool? isOnDuty}) async => [];
   @override
   Future<StaffProfile?> getStaffMember(String staffId) async => null;
   @override

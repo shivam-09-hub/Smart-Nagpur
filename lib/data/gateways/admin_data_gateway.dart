@@ -81,6 +81,7 @@ abstract class AdminDataGateway {
   Future<List<StaffProfile>> getStaffMembers({
     StaffDepartment? department,
     bool? isActive,
+    bool? isOnDuty,
   });
   Future<StaffProfile?> getStaffMember(String staffId);
 

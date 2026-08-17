@@ -424,11 +424,13 @@ class AdminController extends ChangeNotifier {
   Future<List<StaffProfile>> getStaffMembers({
     StaffDepartment? department,
     bool? isActive = true,
+    bool? isOnDuty,
   }) async {
     try {
       return await dataGateway.getStaffMembers(
         department: department,
         isActive: isActive,
+        isOnDuty: isOnDuty,
       );
     } catch (e) {
       _error = e.toString();

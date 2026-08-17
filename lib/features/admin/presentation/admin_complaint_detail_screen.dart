@@ -94,6 +94,7 @@ class _AdminComplaintDetailScreenState
     final staffList = await widget.controller.getStaffMembers(
       department: dept,
       isActive: true,
+      isOnDuty: true,
     );
     if (mounted) {
       setState(() {
@@ -1009,10 +1010,10 @@ class _AdminComplaintDetailScreenState
               .toList(),
           onChanged: (staff) => setState(() => _selectedStaff = staff),
           decoration: InputDecoration(
-            labelText: 'Select Field Staff Member',
+            labelText: 'Select On-Duty Staff Member',
             hintText: _availableStaff.isEmpty
-                ? 'No active staff in this department'
-                : 'Choose a staff member',
+                ? 'No on-duty staff available in this department'
+                : 'Choose an on-duty staff member',
             prefixIcon: const Icon(Icons.engineering_rounded),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),

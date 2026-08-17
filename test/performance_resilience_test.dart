@@ -296,7 +296,7 @@ class SlowMockAdminDataGateway implements AdminDataGateway {
   }) async => throw UnimplementedError();
 
   @override
-  Future<List<StaffProfile>> getStaffMembers({StaffDepartment? department, bool? isActive}) async => [];
+  Future<List<StaffProfile>> getStaffMembers({StaffDepartment? department, bool? isActive, bool? isOnDuty}) async => [];
 
   @override
   Future<StaffProfile?> getStaffMember(String staffId) async => null;
