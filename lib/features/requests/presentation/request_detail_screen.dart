@@ -115,7 +115,7 @@ class _RequestDetail extends StatelessWidget {
                     label: 'Submitted',
                     value: DateFormat(
                       'd MMM yyyy, h:mm a',
-                    ).format(record.createdAt),
+                    ).format(record.createdAt.toLocal()),
                   ),
                   _InfoRow(label: 'Contact', value: '+91 ${record.contactPhone}'),
                   ...record.extraFields.entries.map(
@@ -449,7 +449,7 @@ class _TimelineItem extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
-                        DateFormat('d MMM yyyy, h:mm a').format(timestamp!),
+                        DateFormat('d MMM yyyy, h:mm a').format(timestamp!.toLocal()),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ),

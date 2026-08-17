@@ -74,14 +74,14 @@ class StaffProfile {
       isActive: json['is_active'] as bool? ?? true,
       isOnDuty: json['is_on_duty'] as bool? ?? false,
       lastActiveAt: json['last_active_at'] != null
-          ? DateTime.tryParse(json['last_active_at'] as String)
+          ? DateTime.tryParse(json['last_active_at'] as String)?.toLocal()
           : null,
       createdBy: json['created_by'] as String?,
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'] as String)
+          ? DateTime.tryParse(json['created_at'] as String)?.toLocal()
           : null,
       updatedAt: json['updated_at'] != null
-          ? DateTime.tryParse(json['updated_at'] as String)
+          ? DateTime.tryParse(json['updated_at'] as String)?.toLocal()
           : null,
     );
   }

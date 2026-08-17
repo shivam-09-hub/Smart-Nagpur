@@ -99,10 +99,10 @@ class ComplaintEvidence {
       distanceFromComplaintMeters: (json['distance_from_complaint_meters'] as num?)?.toDouble(),
       isGeoVerified: json['is_geo_verified'] as bool? ?? false,
       capturedAt: json['captured_at'] != null
-          ? DateTime.tryParse(json['captured_at'].toString()) ?? DateTime.now()
+          ? (DateTime.tryParse(json['captured_at'].toString()) ?? DateTime.now()).toLocal()
           : DateTime.now(),
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
+          ? (DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()).toLocal()
           : DateTime.now(),
       signedUrl: json['signed_url'] as String?,
       staffName: staffData?['name'] as String?,

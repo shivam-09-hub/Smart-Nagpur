@@ -206,7 +206,7 @@ class _VendorApplicationTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    DateFormat('dd MMM').format(application.createdAt),
+                    DateFormat('dd MMM').format(application.createdAt.toLocal()),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),

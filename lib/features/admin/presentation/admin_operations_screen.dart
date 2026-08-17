@@ -382,9 +382,12 @@ class _AdminOperationsScreenState extends State<AdminOperationsScreen>
                     children: [
                       const Icon(Icons.person_outline, size: 14, color: AppColors.textPrimary),
                       const SizedBox(width: 6),
-                      Text(
-                        item.staffName,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                      Flexible(
+                        child: Text(
+                          item.staffName,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       if (item.staffEmployeeId.isNotEmpty) ...[
                         const SizedBox(width: 4),

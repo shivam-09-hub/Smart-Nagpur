@@ -998,7 +998,7 @@ class _ComplaintWizardScreenState extends State<ComplaintWizardScreen> {
                           label: 'Date',
                           value: DateFormat(
                             'd MMM yyyy, h:mm a',
-                          ).format(record.createdAt),
+                          ).format(record.createdAt.toLocal()),
                         ),
                         _ReviewRow(label: 'Status', value: record.status.label),
                       ],
@@ -1064,8 +1064,14 @@ class _WizardProgress extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+                const SizedBox(width: 8),
                 const Spacer(),
-                Text(labels[step]),
+                Flexible(
+                  child: Text(
+                    labels[step],
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),

@@ -56,13 +56,12 @@ class RequestTimelineEntry {
   };
 
   factory RequestTimelineEntry.fromJson(Map<String, Object?> json) {
+    final rawTime = json['timestamp'] ?? json['created_at'];
     return RequestTimelineEntry(
       title: json['title'] as String? ?? '',
-      timestamp:
-          DateTime.tryParse(json['timestamp'] as String? ?? '') ??
-          DateTime.now(),
+      timestamp: (DateTime.tryParse(rawTime as String? ?? '') ?? DateTime.now()).toLocal(),
       message: json['message'] as String?,
-      isCompleted: json['isCompleted'] as bool? ?? true,
+      isCompleted: json['isCompleted'] as bool? ?? json['is_completed'] as bool? ?? true,
     );
   }
 }
@@ -226,11 +225,11 @@ class ComplaintRecord {
         json['extraFields'] as Map? ?? json['extra_fields'] as Map? ?? const <String, String>{},
       ),
       createdAt:
-          DateTime.tryParse(json['createdAt'] as String? ?? json['created_at'] as String? ?? '') ??
-          DateTime.now(),
+          (DateTime.tryParse(json['createdAt'] as String? ?? json['created_at'] as String? ?? '') ??
+          DateTime.now()).toLocal(),
       updatedAt:
-          DateTime.tryParse(json['updatedAt'] as String? ?? json['updated_at'] as String? ?? '') ??
-          DateTime.now(),
+          (DateTime.tryParse(json['updatedAt'] as String? ?? json['updated_at'] as String? ?? '') ??
+          DateTime.now()).toLocal(),
       status: complaintStatusFromJson(json['status']),
       timeline: (json['timeline'] as List<Object?>? ?? const [])
           .whereType<Map>()

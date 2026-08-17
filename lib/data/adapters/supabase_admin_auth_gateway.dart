@@ -173,8 +173,14 @@ class SupabaseAdminAuthGateway implements AdminAuthGateway {
             : 'Administrative user provisioning must be performed through the secure server endpoint.';
         throw Exception(errorMsg);
       }
+    } on FunctionsHttpException catch (e) {
+      if (e.status == 404) {
+        throw Exception('Admin provisioning server endpoint is not configured. Please use Supabase SQL Editor to manage administrators.');
+      }
+      throw Exception('Failed to create admin: ${e.toString()}');
     } catch (e) {
-      rethrow;
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      throw Exception(msg);
     }
   }
 

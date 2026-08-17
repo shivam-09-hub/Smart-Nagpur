@@ -1750,7 +1750,7 @@ CREATE OR REPLACE FUNCTION public.admin_create_staff_account(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = public, extensions, auth, pg_temp
 AS $$
 DECLARE
   v_caller_id uuid := auth.uid();
@@ -1800,7 +1800,16 @@ BEGIN
 
   -- 4. Check / Upsert auth.users
   SELECT id INTO v_new_user_id FROM auth.users WHERE email = v_norm_email;
-  v_encrypted_pw := extensions.crypt(p_password, extensions.gen_salt('bf', 10));
+  
+  BEGIN
+    v_encrypted_pw := extensions.crypt(p_password, extensions.gen_salt('bf', 10));
+  EXCEPTION WHEN OTHERS THEN
+    BEGIN
+      v_encrypted_pw := public.crypt(p_password, public.gen_salt('bf', 10));
+    EXCEPTION WHEN OTHERS THEN
+      v_encrypted_pw := crypt(p_password, gen_salt('bf', 10));
+    END;
+  END;
 
   IF v_new_user_id IS NULL THEN
     v_new_user_id := gen_random_uuid();

@@ -79,6 +79,30 @@ class _AdminComplaintDetailScreenState
     setState(() => _isLoading = false);
   }
 
+  /// Lightweight refresh: only re-fetches complaint data, assignment, and evidence
+  /// without resetting form state (dropdown selections, text fields, staff list).
+  Future<void> _refreshData() async {
+    _complaint = await widget.controller.getComplaintDetails(
+      widget.complaintId,
+    );
+
+    if (_complaint != null) {
+      if (_complaint!.currentAssignmentId != null) {
+        _currentAssignment = await widget.controller.getComplaintAssignment(
+          _complaint!.currentAssignmentId!,
+        );
+      } else {
+        _currentAssignment = null;
+      }
+
+      _evidenceList = await widget.controller.getComplaintEvidence(
+        widget.complaintId,
+      );
+    }
+
+    if (mounted) setState(() {});
+  }
+
 
   StaffDepartment _getDepartmentForService(ServiceType type) {
     return switch (type) {
@@ -140,7 +164,7 @@ class _AdminComplaintDetailScreenState
       );
       _instructionsController.clear();
       _selectedStaff = null;
-      await _loadData();
+      await _refreshData();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -215,7 +239,7 @@ class _AdminComplaintDetailScreenState
           backgroundColor: AppColors.success,
         ),
       );
-      await _loadData();
+      await _refreshData();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -288,7 +312,7 @@ class _AdminComplaintDetailScreenState
           backgroundColor: AppColors.warning,
         ),
       );
-      await _loadData();
+      await _refreshData();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -323,7 +347,7 @@ class _AdminComplaintDetailScreenState
         _selectedStatus = null;
         _notesController.clear();
       });
-      await _loadData();
+      await _refreshData();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -362,7 +386,7 @@ class _AdminComplaintDetailScreenState
         const SnackBar(content: Text('Review submitted successfully')),
       );
       _commentsController.clear();
-      await _loadData();
+      await _refreshData();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -595,7 +619,7 @@ class _AdminComplaintDetailScreenState
                                       Text(
                                         DateFormat(
                                           'dd MMM yyyy, hh:mm a',
-                                        ).format(entry.timestamp),
+                                        ).format(entry.timestamp.toLocal()),
                                         style: Theme.of(context)
                                             .textTheme
                                             .bodySmall
@@ -718,25 +742,28 @@ class _AdminComplaintDetailScreenState
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Complaint #${complaint.id}',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Complaint #${complaint.id}',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      DateFormat(
-                        'dd MMM yyyy, hh:mm a',
-                      ).format(complaint.createdAt),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat(
+                          'dd MMM yyyy, hh:mm a',
+                        ).format(complaint.createdAt.toLocal()),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -823,18 +850,24 @@ class _AdminComplaintDetailScreenState
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.person_pin_rounded, size: 20, color: AppColors.info),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Currently Assigned Staff',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.info,
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.person_pin_rounded, size: 20, color: AppColors.info),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Currently Assigned Staff',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.info,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -874,7 +907,7 @@ class _AdminComplaintDetailScreenState
                 ],
                 const SizedBox(height: 4),
                 Text(
-                  'Assigned on: ${DateFormat('dd MMM yyyy, hh:mm a').format(_currentAssignment!.assignedAt)}',
+                  'Assigned on: ${DateFormat('dd MMM yyyy, hh:mm a').format(_currentAssignment!.assignedAt.toLocal())}',
                   style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
                 ),
                 if (_currentAssignment!.status == AssignmentStatus.reworkRequired &&
@@ -917,11 +950,14 @@ class _AdminComplaintDetailScreenState
                     children: [
                       const Icon(Icons.verified_outlined, size: 20, color: AppColors.success),
                       const SizedBox(width: 6),
-                      Text(
-                        'Field Work Submitted for Verification',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.success,
+                      Flexible(
+                        child: Text(
+                          'Field Work Submitted for Verification',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.success,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -936,7 +972,7 @@ class _AdminComplaintDetailScreenState
                   ],
                   if (_currentAssignment!.completedAt != null)
                     Text(
-                      'Completed on: ${DateFormat('dd MMM yyyy, hh:mm a').format(_currentAssignment!.completedAt!)}',
+                      'Completed on: ${DateFormat('dd MMM yyyy, hh:mm a').format(_currentAssignment!.completedAt!.toLocal())}',
                       style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                     ),
                   const SizedBox(height: 12),
@@ -1117,19 +1153,25 @@ class _AdminComplaintDetailScreenState
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          evidence.isPdf ? Icons.picture_as_pdf_outlined : Icons.photo_camera_outlined,
-                          size: 18,
-                          color: evidence.isPdf ? AppColors.info : AppColors.primary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          evidence.evidenceType.label,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                        ),
-                      ],
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            evidence.isPdf ? Icons.picture_as_pdf_outlined : Icons.photo_camera_outlined,
+                            size: 18,
+                            color: evidence.isPdf ? AppColors.info : AppColors.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              evidence.evidenceType.label,
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1182,7 +1224,7 @@ class _AdminComplaintDetailScreenState
                     style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                   ),
                 Text(
-                  'Captured: ${dateFormat.format(evidence.capturedAt)}',
+                  'Captured: ${dateFormat.format(evidence.capturedAt.toLocal())}',
                   style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
                 ),
               ],

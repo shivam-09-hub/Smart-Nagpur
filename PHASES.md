@@ -13,8 +13,9 @@ This document outlines the step-by-step development phases, milestone deliverabl
 | **Phase 3** | Supabase Backend Integration | PostgreSQL schema, RLS, transactional RPCs, Storage buckets, Auth triggers, contract tests. | **Complete** |
 | **Phase 4** | Municipal Admin Portal & Flavors | Admin domain models, Supabase admin RPCs, `admin_main.dart`, AdminController, 8 admin screens, build flavors. | **Complete** |
 | **Phase 5** | Testing & Physical Device Validation | Android 14 physical device testing, cold-start lifecycle fix, regression test suite (46 tests). | **Complete** |
-| **Phase 6** | Field Staff Portal & Task Engine | `staff_profiles`, `complaint_assignments`, `complaint_evidence`, `lib/staff_main.dart`, `StaffController`, Edge Functions. | **In Progress (Foundation Complete)** |
-| **Phase 7** | Municipal ERP Integration & Production | NMC API integration, SMS OTP via DLT, Push notifications (FCM), Vector map provider, Play Store release. | **Planned** |
+| **Phase 6** | Field Staff Portal & Task Engine | `staff_profiles`, `complaint_assignments`, `complaint_evidence`, `lib/staff_main.dart`, `StaffController`, 119 unit/widget tests. | **Complete** |
+| **Phase 7** | Real-World Timezone & Cloud Interconnection | Universal local time formatters (.toLocal()), GoTrue auth scan fix, live end-to-end multi-APK verification. | **Complete** |
+| **Phase 8** | Municipal ERP Integration & Production | NMC API integration, SMS OTP via DLT, Push notifications (FCM), Vector map provider, Play Store release. | **Planned** |
 
 ---
 

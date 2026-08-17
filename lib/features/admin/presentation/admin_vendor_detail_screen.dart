@@ -480,7 +480,7 @@ class _AdminVendorDetailScreenState extends State<AdminVendorDetailScreen> {
                                     const SizedBox(height: 4),
                                     Text(
                                       DateFormat('dd MMM yyyy, hh:mm a')
-                                          .format(entry.timestamp!),
+                                          .format(entry.timestamp!.toLocal()),
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
@@ -561,23 +561,26 @@ class _AdminVendorDetailScreenState extends State<AdminVendorDetailScreen> {
             _buildSection(
               title: 'Add Administrative Review',
               children: [
-                Row(
-                  children: [
-                    const Text('Rating: '),
-                    const SizedBox(width: 8),
-                    ...List.generate(5, (index) {
-                      final star = index + 1;
-                      return IconButton(
-                        icon: Icon(
-                          star <= _selectedRating
-                              ? Icons.star
-                              : Icons.star_border,
-                          color: Colors.amber,
-                        ),
-                        onPressed: () => setState(() => _selectedRating = star),
-                      );
-                    }),
-                  ],
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      const Text('Rating: '),
+                      const SizedBox(width: 8),
+                      ...List.generate(5, (index) {
+                        final star = index + 1;
+                        return IconButton(
+                          icon: Icon(
+                            star <= _selectedRating
+                                ? Icons.star
+                                : Icons.star_border,
+                            color: Colors.amber,
+                          ),
+                          onPressed: () => setState(() => _selectedRating = star),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 8),
                 TextField(
@@ -615,24 +618,29 @@ class _AdminVendorDetailScreenState extends State<AdminVendorDetailScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  application.details.businessName,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    application.details.businessName,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Created on ${DateFormat('dd MMM yyyy').format(application.createdAt)}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
+                  const SizedBox(height: 4),
+                  Text(
+                    'Created on ${DateFormat('dd MMM yyyy').format(application.createdAt.toLocal())}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(

@@ -345,7 +345,7 @@ class _StaffTasksScreenState extends State<StaffTasksScreen> {
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
-                                            dateFormat.format(task.assignedAt),
+                                            dateFormat.format(task.assignedAt.toLocal()),
                                             style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
                                           ),
                                         ],

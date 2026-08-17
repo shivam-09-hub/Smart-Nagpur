@@ -11,11 +11,10 @@ Apply the versioned SQL migrations to your Supabase project in numerical order v
 1. [`migrations/202608170001_smart_nagpur_backend.sql`](migrations/202608170001_smart_nagpur_backend.sql) (Citizen schema, RPCs, Storage).
 2. [`migrations/202608180001_smart_nagpur_admin.sql`](migrations/202608180001_smart_nagpur_admin.sql) (Admin schema, review queues, RPCs).
 3. [`migrations/202608190001_smart_nagpur_staff.sql`](migrations/202608190001_smart_nagpur_staff.sql) (Staff profiles, task assignments, evidence bucket, Haversine distance calculator).
+4. [`repair_and_fix_staff.sql`](repair_and_fix_staff.sql) (Token normalization & native staff provisioning RPC).
 
-### Deploy Edge Functions
-```bash
-supabase functions deploy admin-create-staff --no-verify-jwt
-```
+### Native Staff Provisioning (No Edge Function deployment blocker)
+Staff accounts are provisioned securely via PostgreSQL stored procedure `admin_create_staff_account` with full GoTrue token normalization.
 
 A publishable mobile key cannot apply database DDL. Deployment requires an
 authorized Dashboard user or a locally authenticated/linked Supabase CLI; do not

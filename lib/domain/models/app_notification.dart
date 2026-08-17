@@ -67,10 +67,10 @@ class AppNotification {
         orElse: () => NotificationCategory.cityUpdates,
       ),
       createdAt:
-          DateTime.tryParse(
+          (DateTime.tryParse(
             (json['created_at'] ?? json['createdAt']) as String? ?? '',
           ) ??
-          DateTime.now(),
+          DateTime.now()).toLocal(),
       destination: NotificationDestination.values.firstWhere(
         (value) => value.name == json['destination'],
         orElse: () => NotificationDestination.none,

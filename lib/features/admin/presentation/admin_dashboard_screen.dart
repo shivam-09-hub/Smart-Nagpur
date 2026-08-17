@@ -602,6 +602,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   String _formatDate(DateTime? date) {
     if (date == null) return 'Never';
-    return DateFormat('dd MMM, hh:mm a').format(date);
+    return DateFormat('dd MMM, hh:mm a').format(date.toLocal());
   }
 }

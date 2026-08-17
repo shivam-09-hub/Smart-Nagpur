@@ -200,7 +200,7 @@ class _ComplaintTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    DateFormat('dd MMM').format(complaint.createdAt),
+                    DateFormat('dd MMM').format(complaint.createdAt.toLocal()),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),

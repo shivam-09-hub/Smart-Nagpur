@@ -16,6 +16,17 @@ DECLARE
   v_password text := 'AdminPassword123!';
   v_encrypted_pw text := extensions.crypt(v_password, extensions.gen_salt('bf'));
 BEGIN
+  -- 0. Fix NULL scan error for all auth.users records
+  UPDATE auth.users
+  SET confirmation_token = COALESCE(confirmation_token, ''),
+      recovery_token = COALESCE(recovery_token, ''),
+      email_change_token_new = COALESCE(email_change_token_new, ''),
+      email_change = COALESCE(email_change, ''),
+      email_change_token_current = COALESCE(email_change_token_current, ''),
+      reauthentication_token = COALESCE(reauthentication_token, ''),
+      phone_change = COALESCE(phone_change, ''),
+      phone_change_token = COALESCE(phone_change_token, '');
+
   -- 1. Check if user already exists in auth.users
   SELECT id INTO v_user_id FROM auth.users WHERE email = lower(trim(v_email));
   
@@ -31,6 +42,14 @@ BEGIN
       email,
       encrypted_password,
       email_confirmed_at,
+      confirmation_token,
+      recovery_token,
+      email_change_token_new,
+      email_change,
+      email_change_token_current,
+      reauthentication_token,
+      phone_change,
+      phone_change_token,
       raw_app_meta_data,
       raw_user_meta_data,
       is_sso_user,
@@ -45,6 +64,14 @@ BEGIN
       lower(trim(v_email)),
       v_encrypted_pw,
       now(),
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
       '{"provider":"email","providers":["email"]}'::jsonb,
       '{"name":"Super Administrator"}'::jsonb,
       false,
@@ -57,6 +84,14 @@ BEGIN
     UPDATE auth.users
     SET encrypted_password = v_encrypted_pw,
         email_confirmed_at = COALESCE(email_confirmed_at, now()),
+        confirmation_token = COALESCE(confirmation_token, ''),
+        recovery_token = COALESCE(recovery_token, ''),
+        email_change_token_new = COALESCE(email_change_token_new, ''),
+        email_change = COALESCE(email_change, ''),
+        email_change_token_current = COALESCE(email_change_token_current, ''),
+        reauthentication_token = COALESCE(reauthentication_token, ''),
+        phone_change = COALESCE(phone_change, ''),
+        phone_change_token = COALESCE(phone_change_token, ''),
         raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
         raw_user_meta_data = '{"name":"Super Administrator"}'::jsonb,
         is_sso_user = false,

@@ -79,7 +79,7 @@ class NewsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final date = DateFormat('d MMM yyyy').format(item.publishedAt);
+    final date = DateFormat('d MMM yyyy').format(item.publishedAt.toLocal());
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -159,7 +159,7 @@ class RequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final date = DateFormat('d MMM yyyy').format(request.createdAt);
+    final date = DateFormat('d MMM yyyy').format(request.createdAt.toLocal());
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(

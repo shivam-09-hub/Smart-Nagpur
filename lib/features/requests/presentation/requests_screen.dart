@@ -194,7 +194,7 @@ class _RequestCard extends StatelessWidget {
                           _RequestStatus(status: record.status),
                           const Spacer(),
                           Text(
-                            DateFormat('d MMM yyyy').format(record.createdAt),
+                            DateFormat('d MMM yyyy').format(record.createdAt.toLocal()),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],

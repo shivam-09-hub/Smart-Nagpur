@@ -3,11 +3,25 @@
 Unified civic services, municipal governance, and on-ground field resolution platform for Nagpur, backed by Supabase.
 
 The platform provides three specialized mobile applications built on a shared domain, gateway, and database architecture:
-1. **Citizen App (`lib/main.dart`)**: Service discovery, grievance reporting with GPS & camera, street vendor permitting, milestone tracking, news, and notifications.
-2. **Municipal Admin App (`lib/admin_main.dart`)**: Executive dashboard, complaint triage, vendor permit reviews, user account management, staff provisioning, and broadcast notifications.
-3. **Field Staff App (`lib/staff_main.dart`)**: On-duty status toggle, task management, on-site resolution verification, and before/after proof submissions.
+1. **Citizen App (`lib/main.dart` / Flavor: `citizen`)**: Service discovery, grievance reporting with GPS & camera, street vendor permitting, milestone tracking, news, and notifications.
+2. **Municipal Admin App (`lib/admin_main.dart` / Flavor: `admin`)**: Executive dashboard, complaint triage, vendor permit reviews, staff provisioning, staff assignment, and broadcast notifications.
+3. **Field Staff App (`lib/staff_main.dart` / Flavor: `staff`)**: On-duty shift status toggle, real-time task ingestion, on-site resolution verification, GPS navigation, and before/after proof submissions.
 
-Signed-in account data is stored in PostgreSQL and files in private Supabase Storage buckets (`complaint-photos`, `vendor-documents`, `complaint-evidence`).
+All data is stored in PostgreSQL and files in private Supabase Storage buckets (`complaint-photos`, `vendor-documents`, `complaint-evidence`).
+
+---
+
+## Key Features & Highlights
+
+- **Multi-Tier Interconnected Lifecycle**:
+  - Citizen lodges a complaint with GPS & photos.
+  - Admin triages and assigns to field technician in real-time.
+  - Staff receives task on-device, navigates with GPS, captures before/after photo proof, and submits completion notes.
+  - Admin verifies proof and approves resolution.
+  - Citizen app instantly updates with real-time status and timeline milestones.
+- **Accurate Real-World Timestamps**: Universal device-local timezone formatting (`.toLocal()`) across all domain models and screens in IST.
+- **Native Staff Provisioning**: Direct, secure PostgreSQL RPC (`admin_create_staff_account`) with automated GoTrue token normalization.
+- **Production Quality**: `flutter analyze` has **0 issues** and all **119 automated tests** pass.
 
 ---
 
@@ -15,15 +29,11 @@ Signed-in account data is stored in PostgreSQL and files in private Supabase Sto
 
 The configured project is `hcpcycfvupjuklhcaxzg`. Complete these steps in the Supabase Dashboard SQL Editor:
 
-1. Run [`202608170001_smart_nagpur_backend.sql`](supabase/migrations/202608170001_smart_nagpur_backend.sql) (Citizen schema & storage).
-2. Run [`202608180001_smart_nagpur_admin.sql`](supabase/migrations/202608180001_smart_nagpur_admin.sql) (Admin schema & RPCs).
-3. Run [`202608190001_smart_nagpur_staff.sql`](supabase/migrations/202608190001_smart_nagpur_staff.sql) (Staff schema, evidence bucket, Haversine RPC).
-4. Run [`schema_contract.sql`](supabase/tests/schema_contract.sql) to validate schema health.
-5. Deploy Edge Function:
-   ```bash
-   supabase functions deploy admin-create-staff --no-verify-jwt
-   ```
-6. In **Authentication -> URL Configuration -> Redirect URLs**, add:
+1. Run [`202608170001_smart_nagpur_backend.sql`](supabase/migrations/202608170001_smart_nagpur_backend.sql) (Citizen schema, tables & storage).
+2. Run [`202608180001_smart_nagpur_admin.sql`](supabase/migrations/202608180001_smart_nagpur_admin.sql) (Admin schema, analytics & review RPCs).
+3. Run [`202608190001_smart_nagpur_staff.sql`](supabase/migrations/202608190001_smart_nagpur_staff.sql) (Staff schema, evidence bucket & assignment RPCs).
+4. Run [`repair_and_fix_staff.sql`](supabase/repair_and_fix_staff.sql) to normalize auth tokens and ensure clean staff provisioning.
+5. In **Authentication -> URL Configuration -> Redirect URLs**, add:
    ```text
    com.smartnagpur.citizen://login-callback/
    com.smartnagpur.admin://login-callback/
@@ -32,17 +42,17 @@ The configured project is `hcpcycfvupjuklhcaxzg`. Complete these steps in the Su
 
 ---
 
-## Run Locally
+## Running Locally
 
 ```powershell
 # 1. Run Citizen App
-flutter run -t lib/main.dart
+flutter run --flavor citizen -t lib/main.dart
 
 # 2. Run Admin App
-flutter run -t lib/admin_main.dart
+flutter run --flavor admin -t lib/admin_main.dart
 
 # 3. Run Field Staff App
-flutter run -t lib/staff_main.dart
+flutter run --flavor staff -t lib/staff_main.dart
 ```
 
 ---
@@ -51,19 +61,19 @@ flutter run -t lib/staff_main.dart
 
 ```powershell
 # Run Static Analysis & Tests
-flutter analyze --no-pub
-flutter test --no-pub
+flutter analyze
+flutter test
 
-# Build Split APKs (Optimized per ABI)
-flutter build apk --release --split-per-abi -t lib/main.dart
-flutter build apk --release --split-per-abi -t lib/admin_main.dart
-flutter build apk --release --split-per-abi -t lib/staff_main.dart
+# Build Release APKs per Flavor
+flutter build apk --release --flavor citizen -t lib/main.dart
+flutter build apk --release --flavor admin -t lib/admin_main.dart
+flutter build apk --release --flavor staff -t lib/staff_main.dart
 ```
 
 Generated APKs are located at `build/app/outputs/flutter-apk/`:
-- `app-arm64-v8a-release.apk` (Modern 64-bit phones)
-- `app-armeabi-v7a-release.apk` (32-bit legacy devices)
-- `app-universal-release.apk` (Universal package)
+- `app-citizen-release.apk`
+- `app-admin-release.apk`
+- `app-staff-release.apk`
 
 ---
 
@@ -79,5 +89,3 @@ Generated APKs are located at `build/app/outputs/flutter-apk/`:
 - [Admin App Summary](ADMIN_README.md)
 - [Field Staff App Summary](STAFF_README.md)
 - [Memory & State History](MEMORY.md)
-
-

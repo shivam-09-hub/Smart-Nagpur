@@ -1023,22 +1023,22 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
                       const SizedBox(height: AppSpacing.md),
                       _buildMilestoneRow(
                         'Admin Assignment',
-                        dateFormat.format(_currentTask.assignedAt),
+                        dateFormat.format(_currentTask.assignedAt.toLocal()),
                         isDone: true,
                       ),
                       _buildMilestoneRow(
                         'Staff Accepted',
-                        _currentTask.acceptedAt != null ? dateFormat.format(_currentTask.acceptedAt!) : 'Pending acceptance',
+                        _currentTask.acceptedAt != null ? dateFormat.format(_currentTask.acceptedAt!.toLocal()) : 'Pending acceptance',
                         isDone: _currentTask.acceptedAt != null,
                       ),
                       _buildMilestoneRow(
                         'Field Work Commenced',
-                        _currentTask.startedAt != null ? dateFormat.format(_currentTask.startedAt!) : 'Pending start',
+                        _currentTask.startedAt != null ? dateFormat.format(_currentTask.startedAt!.toLocal()) : 'Pending start',
                         isDone: _currentTask.startedAt != null,
                       ),
                       _buildMilestoneRow(
                         'Field Work Submitted',
-                        _currentTask.completedAt != null ? dateFormat.format(_currentTask.completedAt!) : 'Pending completion',
+                        _currentTask.completedAt != null ? dateFormat.format(_currentTask.completedAt!.toLocal()) : 'Pending completion',
                         isDone: _currentTask.completedAt != null,
                       ),
                       _buildMilestoneRow(
@@ -1241,7 +1241,7 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
                 const SizedBox(height: 2),
                 if (evidence != null) ...[
                   Text(
-                    'Captured: ${dateFormat.format(evidence.capturedAt)}',
+                    'Captured: ${dateFormat.format(evidence.capturedAt.toLocal())}',
                     style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 2),
@@ -1334,7 +1334,7 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
                     style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                   ),
                   Text(
-                    'Uploaded: ${dateFormat.format(evidence.capturedAt)}',
+                    'Uploaded: ${dateFormat.format(evidence.capturedAt.toLocal())}',
                     style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
                   ),
                 ] else

@@ -94,7 +94,7 @@ class VendorTimelineEntry {
   factory VendorTimelineEntry.fromJson(Map<String, Object?> json) {
     return VendorTimelineEntry(
       title: json['title'] as String? ?? '',
-      timestamp: DateTime.tryParse(json['timestamp'] as String? ?? ''),
+      timestamp: DateTime.tryParse(json['timestamp'] as String? ?? '')?.toLocal(),
       message: json['message'] as String?,
       isCompleted: json['isCompleted'] as bool? ?? false,
       isCurrent: json['isCurrent'] as bool? ?? false,
@@ -314,11 +314,11 @@ class VendorApplication {
       ),
       status: vendorStatusFromJson(json['status']),
       createdAt:
-          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
-          DateTime.now(),
+          (DateTime.tryParse(json['createdAt'] as String? ?? json['created_at'] as String? ?? '') ??
+          DateTime.now()).toLocal(),
       updatedAt:
-          DateTime.tryParse(json['updatedAt'] as String? ?? '') ??
-          DateTime.now(),
+          (DateTime.tryParse(json['updatedAt'] as String? ?? json['updated_at'] as String? ?? '') ??
+          DateTime.now()).toLocal(),
       timeline: (json['timeline'] as List<Object?>? ?? const [])
           .whereType<Map>()
           .map(

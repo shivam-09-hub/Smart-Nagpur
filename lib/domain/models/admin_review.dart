@@ -92,10 +92,10 @@ class AdminReview {
         orElse: () => ReviewStatus.pending,
       ),
       createdAt:
-          DateTime.tryParse(
+          (DateTime.tryParse(
             (json['created_at'] ?? json['createdAt']) as String? ?? '',
           ) ??
-          DateTime.now(),
+          DateTime.now()).toLocal(),
       comments: json['comments'] as String? ?? '',
       rating: json['rating'] as int?,
       attachmentNotes:

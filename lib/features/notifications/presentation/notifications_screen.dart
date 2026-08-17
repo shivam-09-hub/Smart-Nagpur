@@ -222,7 +222,7 @@ class _NotificationTile extends StatelessWidget {
                         Text(
                           DateFormat(
                             'd MMM, h:mm a',
-                          ).format(notification.createdAt),
+                          ).format(notification.createdAt.toLocal()),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         if (notification.isDemo) ...[

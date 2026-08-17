@@ -620,40 +620,13 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
         final staffMap = Map<String, dynamic>.from(rpcRes['staff'] as Map);
         return StaffProfile.fromJson(staffMap);
       }
-    } catch (rpcError) {
-      // 2. Secondary: Edge Function Fallback
-      try {
-        final response = await client.functions.invoke(
-          'admin-create-staff',
-          body: {
-            'name': name,
-            'email': email,
-            'employee_id': employeeId,
-            'department': department.code,
-            'role': role.code,
-            'phone': phone,
-            'zone': zone,
-            'ward': ward,
-            if (password != null && password.isNotEmpty) 'password': password,
-          },
-        );
-
-        if (response.status != 201 && response.status != 200) {
-          final errorMsg = response.data is Map && (response.data as Map)['error'] != null
-              ? (response.data as Map)['error'].toString()
-              : 'Failed to provision staff member (HTTP ${response.status})';
-          throw Exception(errorMsg);
-        }
-
-        final data = response.data as Map<String, dynamic>;
-        final staffMap = data['staff'] as Map<String, dynamic>;
-        return StaffProfile.fromJson(staffMap);
-      } catch (_) {
-        // Rethrow the primary RPC error message if edge function is not deployed
-        rethrow;
-      }
+      throw Exception('Server returned an unexpected response format when creating staff account.');
+    } on PostgrestException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      throw Exception(msg);
     }
-    throw Exception('Failed to create staff profile');
   }
 
   @override

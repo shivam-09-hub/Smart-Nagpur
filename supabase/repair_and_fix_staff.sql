@@ -1,4 +1,120 @@
--- Complete robust function to create staff accounts that GoTrue can authenticate seamlessly
+-- =============================================================================
+-- SMART NAGPUR: Fix & Provision Staff (vinay@gmail.com) + Update Staff Function
+-- =============================================================================
+-- Run this in your Supabase Dashboard -> SQL Editor
+
+-- 1. Fix NULL scan error for all auth.users records (GoTrue Scan Error fix)
+UPDATE auth.users
+SET confirmation_token = COALESCE(confirmation_token, ''),
+    recovery_token = COALESCE(recovery_token, ''),
+    email_change_token_new = COALESCE(email_change_token_new, ''),
+    email_change = COALESCE(email_change, ''),
+    email_change_token_current = COALESCE(email_change_token_current, ''),
+    reauthentication_token = COALESCE(reauthentication_token, ''),
+    phone_change = COALESCE(phone_change, ''),
+    phone_change_token = COALESCE(phone_change_token, '');
+
+-- 2. Remove half-created/corrupted records for vinay@gmail.com
+DELETE FROM auth.identities WHERE identity_data->>'email' = 'vinay@gmail.com' OR user_id IN (SELECT id FROM auth.users WHERE email = 'vinay@gmail.com');
+DELETE FROM public.complaint_assignments WHERE staff_id IN (SELECT id FROM public.staff_profiles WHERE email = 'vinay@gmail.com');
+DELETE FROM public.complaint_evidence WHERE staff_id IN (SELECT id FROM public.staff_profiles WHERE email = 'vinay@gmail.com');
+DELETE FROM public.staff_profiles WHERE email = 'vinay@gmail.com';
+DELETE FROM public.profiles WHERE email = 'vinay@gmail.com';
+DELETE FROM auth.users WHERE email = 'vinay@gmail.com';
+
+-- 3. Create vinay@gmail.com with clean, fully verified GoTrue credentials (non-null string tokens)
+DO $$
+DECLARE
+  v_user_id uuid := gen_random_uuid();
+  v_email text := 'vinay@gmail.com';
+  v_password text := 'Staff@123';
+  v_encrypted_pw text := extensions.crypt(v_password, extensions.gen_salt('bf', 10));
+BEGIN
+  -- Insert into auth.users with ALL required string token fields as ''
+  INSERT INTO auth.users (
+    instance_id,
+    id,
+    aud,
+    role,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    confirmation_token,
+    recovery_token,
+    email_change_token_new,
+    email_change,
+    email_change_token_current,
+    reauthentication_token,
+    phone_change,
+    phone_change_token,
+    raw_app_meta_data,
+    raw_user_meta_data,
+    is_super_admin,
+    is_sso_user,
+    is_anonymous,
+    created_at,
+    updated_at
+  ) VALUES (
+    '00000000-0000-0000-0000-000000000000',
+    v_user_id,
+    'authenticated',
+    'authenticated',
+    v_email,
+    v_encrypted_pw,
+    now(),
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '{"provider": "email", "providers": ["email"]}'::jsonb,
+    '{"name": "Vinay", "role": "FIELD_WORKER", "department": "ROAD"}'::jsonb,
+    false,
+    false,
+    false,
+    now(),
+    now()
+  );
+
+  -- Insert into auth.identities
+  INSERT INTO auth.identities (
+    id,
+    user_id,
+    identity_data,
+    provider,
+    provider_id,
+    last_sign_in_at,
+    created_at,
+    updated_at
+  ) VALUES (
+    v_user_id,
+    v_user_id,
+    jsonb_build_object('sub', v_user_id::text, 'email', v_email, 'email_verified', true),
+    'email',
+    v_user_id::text,
+    now(),
+    now(),
+    now()
+  );
+
+  -- Insert into public.profiles
+  INSERT INTO public.profiles (id, name, email, phone, created_at, updated_at)
+  VALUES (v_user_id, 'Vinay', v_email, '+919876500099', now(), now())
+  ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email;
+
+  -- Insert into public.staff_profiles
+  INSERT INTO public.staff_profiles (
+    id, name, phone, email, employee_id, department, role, zone, ward, is_active, is_on_duty, created_at, updated_at
+  ) VALUES (
+    v_user_id, 'Vinay', '+919876500099', v_email, 'NMC-ROAD-VINAY', 'ROAD', 'FIELD_WORKER', 'Dharampeth', 'Ward 12', true, true, now(), now()
+  )
+  ON CONFLICT (id) DO UPDATE SET is_active = true, is_on_duty = true;
+END $$;
+
+-- 3. Install the permanent, clean admin_create_staff_account function for all future staff creations
 CREATE OR REPLACE FUNCTION public.admin_create_staff_account(
   p_name text,
   p_email text,
@@ -24,7 +140,7 @@ DECLARE
   v_staff_row record;
   v_now timestamptz := now();
 BEGIN
-  -- 1. Authorization: Only active Admins can create staff accounts
+  -- 1. Authorization
   IF NOT public.is_active_admin() THEN
     RAISE EXCEPTION 'Unauthorized: Only Municipal Administrators can create staff accounts.';
   END IF;
@@ -64,16 +180,7 @@ BEGIN
 
   -- 4. Check if user already exists in auth.users
   SELECT id INTO v_new_user_id FROM auth.users WHERE email = v_norm_email;
-  
-  BEGIN
-    v_encrypted_pw := extensions.crypt(p_password, extensions.gen_salt('bf', 10));
-  EXCEPTION WHEN OTHERS THEN
-    BEGIN
-      v_encrypted_pw := public.crypt(p_password, public.gen_salt('bf', 10));
-    EXCEPTION WHEN OTHERS THEN
-      v_encrypted_pw := crypt(p_password, gen_salt('bf', 10));
-    END;
-  END;
+  v_encrypted_pw := extensions.crypt(p_password, extensions.gen_salt('bf', 10));
 
   IF v_new_user_id IS NULL THEN
     v_new_user_id := gen_random_uuid();
@@ -146,7 +253,7 @@ BEGIN
   END IF;
 
   -- 5. Insert / Upsert into auth.identities
-  DELETE FROM auth.identities WHERE user_id = v_new_user_id;
+  DELETE FROM auth.identities WHERE user_id = v_new_user_id OR identity_data->>'email' = v_norm_email;
   INSERT INTO auth.identities (
     id,
     user_id,

@@ -229,7 +229,7 @@ class VendorInfoRow extends StatelessWidget {
 }
 
 String vendorFormatDate(DateTime date) =>
-    DateFormat('d MMM yyyy, h:mm a').format(date);
+    DateFormat('d MMM yyyy, h:mm a').format(date.toLocal());
 
 String vendorFileName(String path) {
   final parts = path.split(RegExp(r'[\\/]'));

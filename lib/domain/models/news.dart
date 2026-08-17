@@ -66,8 +66,8 @@ class NewsItem {
         orElse: () => NewsCategory.cityUpdates,
       ),
       publishedAt:
-          DateTime.tryParse(json['publishedAt'] as String? ?? '') ??
-          DateTime.now(),
+          (DateTime.tryParse(json['publishedAt'] as String? ?? '') ??
+          DateTime.now()).toLocal(),
       imageUrl: json['imageUrl'] as String?,
       isImportant: json['isImportant'] as bool? ?? false,
       isDemo: json['isDemo'] as bool? ?? true,
