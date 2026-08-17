@@ -172,8 +172,18 @@ DROP POLICY IF EXISTS admin_notifications_insert_all ON public.notifications;
 CREATE POLICY admin_notifications_insert_all ON public.notifications
   FOR INSERT WITH CHECK (public.is_active_admin());
 
+-- 5.5 High-Performance Indexes for Admin Queries & Pagination
+CREATE INDEX IF NOT EXISTS idx_complaints_status_created ON public.complaints(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_complaints_created ON public.complaints(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_vendor_applications_status_created ON public.vendor_applications(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_vendor_applications_created ON public.vendor_applications(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_reviews_lookup ON public.admin_reviews(item_id, item_type);
+CREATE INDEX IF NOT EXISTS idx_user_suspensions_active ON public.user_suspensions(user_id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_admin_notifications_created ON public.admin_notifications(created_at DESC);
+
 -- 6. Storage Policies for Admin Access
 DROP POLICY IF EXISTS admin_storage_complaint_photos ON storage.objects;
+
 CREATE POLICY admin_storage_complaint_photos ON storage.objects
   FOR SELECT USING (bucket_id = 'complaint-photos' AND public.is_active_admin());
 
@@ -204,12 +214,17 @@ DROP FUNCTION IF EXISTS public.send_broadcast_notification(text, text, text) CAS
 
 CREATE OR REPLACE FUNCTION public.get_complaint_stats()
 RETURNS jsonb
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
-  SELECT jsonb_build_object(
+BEGIN
+  IF NOT public.is_active_admin() THEN
+    RAISE EXCEPTION 'Access denied. Caller is not an active municipal administrator.';
+  END IF;
+
+  RETURN jsonb_build_object(
     'total', (SELECT count(*)::int FROM public.complaints),
     'pending', (SELECT count(*)::int FROM public.complaints WHERE status = 'submitted'),
     'resolved', (SELECT count(*)::int FROM public.complaints WHERE status = 'resolved'),
@@ -236,41 +251,59 @@ AS $$
       '{}'::jsonb
     )
   );
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_admin_stats()
 RETURNS jsonb
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
-  SELECT public.get_complaint_stats();
+BEGIN
+  IF NOT public.is_active_admin() THEN
+    RAISE EXCEPTION 'Access denied. Caller is not an active municipal administrator.';
+  END IF;
+
+  RETURN public.get_complaint_stats();
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_vendor_stats()
 RETURNS jsonb
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
-  SELECT jsonb_build_object(
+BEGIN
+  IF NOT public.is_active_admin() THEN
+    RAISE EXCEPTION 'Access denied. Caller is not an active municipal administrator.';
+  END IF;
+
+  RETURN jsonb_build_object(
     'total', (SELECT count(*)::int FROM public.vendor_applications),
     'pending', (SELECT count(*)::int FROM public.vendor_applications WHERE status = 'submitted'),
     'approved', (SELECT count(*)::int FROM public.vendor_applications WHERE status = 'approved'),
     'rejected', (SELECT count(*)::int FROM public.vendor_applications WHERE status = 'rejected')
   );
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_user_stats()
 RETURNS jsonb
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
-  SELECT jsonb_build_object(
+BEGIN
+  IF NOT public.is_active_admin() THEN
+    RAISE EXCEPTION 'Access denied. Caller is not an active municipal administrator.';
+  END IF;
+
+  RETURN jsonb_build_object(
     'total', (SELECT count(*)::int FROM public.profiles),
     'active', (
       SELECT count(*)::int FROM public.profiles p
@@ -280,29 +313,41 @@ AS $$
       )
     )
   );
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_notification_stats()
 RETURNS jsonb
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
-  SELECT jsonb_build_object(
+BEGIN
+  IF NOT public.is_active_admin() THEN
+    RAISE EXCEPTION 'Access denied. Caller is not an active municipal administrator.';
+  END IF;
+
+  RETURN jsonb_build_object(
     'total', (SELECT count(*)::int FROM public.notifications),
     'unread', (SELECT count(*)::int FROM public.notifications WHERE is_read = false)
   );
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_complaints_by_service()
 RETURNS jsonb
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
-  SELECT COALESCE(
+BEGIN
+  IF NOT public.is_active_admin() THEN
+    RAISE EXCEPTION 'Access denied. Caller is not an active municipal administrator.';
+  END IF;
+
+  RETURN COALESCE(
     (
       SELECT jsonb_object_agg(service_type, count)
       FROM (
@@ -314,16 +359,22 @@ AS $$
     ),
     '{}'::jsonb
   );
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_complaints_by_status()
 RETURNS jsonb
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
-  SELECT COALESCE(
+BEGIN
+  IF NOT public.is_active_admin() THEN
+    RAISE EXCEPTION 'Access denied. Caller is not an active municipal administrator.';
+  END IF;
+
+  RETURN COALESCE(
     (
       SELECT jsonb_object_agg(status, count)
       FROM (
@@ -335,16 +386,22 @@ AS $$
     ),
     '{}'::jsonb
   );
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_applications_by_status()
 RETURNS jsonb
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
-  SELECT COALESCE(
+BEGIN
+  IF NOT public.is_active_admin() THEN
+    RAISE EXCEPTION 'Access denied. Caller is not an active municipal administrator.';
+  END IF;
+
+  RETURN COALESCE(
     (
       SELECT jsonb_object_agg(status, count)
       FROM (
@@ -356,16 +413,22 @@ AS $$
     ),
     '{}'::jsonb
   );
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_daily_stats(days integer DEFAULT 30)
 RETURNS jsonb
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
-  SELECT COALESCE(
+BEGIN
+  IF NOT public.is_active_admin() THEN
+    RAISE EXCEPTION 'Access denied. Caller is not an active municipal administrator.';
+  END IF;
+
+  RETURN COALESCE(
     jsonb_agg(
       jsonb_build_object(
         'date', to_char(t.date, 'YYYY-MM-DD'),
@@ -385,16 +448,22 @@ AS $$
     FROM generate_series(0, days - 1) s
     ORDER BY s DESC
   ) t;
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_monthly_report(month integer, year integer)
 RETURNS jsonb
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
-  SELECT jsonb_build_object(
+BEGIN
+  IF NOT public.is_active_admin() THEN
+    RAISE EXCEPTION 'Access denied. Caller is not an active municipal administrator.';
+  END IF;
+
+  RETURN jsonb_build_object(
     'month', month,
     'year', year,
     'complaints_submitted', (
@@ -425,6 +494,7 @@ AS $$
         AND EXTRACT(YEAR FROM created_at) = year
     )
   );
+END;
 $$;
 
 -- 8. Admin Data Retrieval RPCs
@@ -434,22 +504,30 @@ CREATE OR REPLACE FUNCTION public.get_admin_pending_complaints(
   p_status text DEFAULT NULL
 )
 RETURNS jsonb
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
-  SELECT COALESCE(
-    jsonb_agg(public._complaint_remote(c.id)),
+BEGIN
+  IF NOT public.is_active_admin() THEN
+    RAISE EXCEPTION 'Access denied. Caller is not an active municipal administrator.';
+  END IF;
+
+  RETURN COALESCE(
+    (
+      SELECT jsonb_agg(public._complaint_remote(c.id))
+      FROM (
+        SELECT id
+        FROM public.complaints
+        WHERE (p_status IS NULL OR status = p_status)
+        ORDER BY created_at DESC
+        LIMIT p_limit OFFSET p_offset
+      ) c
+    ),
     '[]'::jsonb
-  )
-  FROM (
-    SELECT id
-    FROM public.complaints
-    WHERE (p_status IS NULL OR status = p_status)
-    ORDER BY created_at DESC
-    LIMIT p_limit OFFSET p_offset
-  ) c;
+  );
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_admin_complaint_details(p_id text)
@@ -457,19 +535,41 @@ RETURNS jsonb
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_id uuid;
+  v_is_admin boolean;
+  v_is_supervisor boolean;
+  v_caller_dept text;
+  v_complaint_dept text;
 BEGIN
+  IF NOT (public.is_active_admin() OR public.is_active_staff()) THEN
+    RAISE EXCEPTION 'Access denied. Administrator or Supervisor credentials required.';
+  END IF;
+
+  v_is_admin := public.is_active_admin();
+  SELECT (role IN ('SUPERVISOR', 'OFFICER')), department
+  INTO v_is_supervisor, v_caller_dept
+  FROM public.staff_profiles
+  WHERE id = auth.uid() AND is_active = true;
+
+  IF NOT (v_is_admin OR coalesce(v_is_supervisor, false)) THEN
+    RAISE EXCEPTION 'Access denied. Administrator or Supervisor credentials required.';
+  END IF;
+
   IF p_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
-    SELECT id INTO v_id FROM public.complaints WHERE id = p_id::uuid;
+    SELECT id, assigned_department INTO v_id, v_complaint_dept FROM public.complaints WHERE id = p_id::uuid;
   ELSE
-    SELECT id INTO v_id FROM public.complaints WHERE public_id = p_id;
+    SELECT id, assigned_department INTO v_id, v_complaint_dept FROM public.complaints WHERE public_id = p_id;
   END IF;
 
   IF v_id IS NULL THEN
     RETURN NULL;
+  END IF;
+
+  IF NOT v_is_admin AND v_caller_dept <> coalesce(v_complaint_dept, '') THEN
+    RAISE EXCEPTION 'Access denied. Supervisor cannot access complaints outside their department.';
   END IF;
 
   RETURN public._complaint_remote(v_id);
@@ -482,22 +582,31 @@ CREATE OR REPLACE FUNCTION public.get_admin_vendor_applications(
   p_status text DEFAULT NULL
 )
 RETURNS jsonb
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
-  SELECT COALESCE(
-    jsonb_agg(public._vendor_application_remote(v.id)),
+BEGIN
+  IF NOT public.is_active_admin() THEN
+    RAISE EXCEPTION 'Access denied. Caller is not an active municipal administrator.';
+  END IF;
+
+  RETURN COALESCE(
+    (
+      SELECT jsonb_agg(public._vendor_application_remote(v.id))
+      FROM (
+        SELECT id
+        FROM public.vendor_applications
+        WHERE (p_status IS NULL OR status = p_status)
+        ORDER BY created_at DESC
+        LIMIT p_limit OFFSET p_offset
+      ) v
+    ),
     '[]'::jsonb
-  )
-  FROM (
-    SELECT id
-    FROM public.vendor_applications
-    WHERE (p_status IS NULL OR status = p_status)
-    ORDER BY created_at DESC
-    LIMIT p_limit OFFSET p_offset
-  ) v;
+  );
+
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_admin_vendor_application_details(p_id text)
@@ -505,11 +614,15 @@ RETURNS jsonb
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_id uuid;
 BEGIN
+  IF NOT public.is_active_admin() THEN
+    RAISE EXCEPTION 'Access denied. Caller is not an active municipal administrator.';
+  END IF;
+
   IF p_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
     SELECT id INTO v_id FROM public.vendor_applications WHERE id = p_id::uuid;
   ELSE
@@ -524,6 +637,7 @@ BEGIN
 END;
 $$;
 
+
 -- 9. Transactional Workflow Mutation RPCs (Two-Way Sync)
 CREATE OR REPLACE FUNCTION public.admin_update_complaint_status(
   p_complaint_id text,
@@ -533,7 +647,7 @@ CREATE OR REPLACE FUNCTION public.admin_update_complaint_status(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_id uuid;
@@ -640,7 +754,7 @@ CREATE OR REPLACE FUNCTION public.admin_update_vendor_status(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_id uuid;
@@ -750,7 +864,7 @@ CREATE OR REPLACE FUNCTION public.suspend_user(user_id uuid, reason text)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 BEGIN
   IF NOT public.is_active_admin() THEN
@@ -766,7 +880,7 @@ CREATE OR REPLACE FUNCTION public.reactivate_user(user_id uuid)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 BEGIN
   IF NOT public.is_active_admin() THEN
@@ -783,8 +897,9 @@ CREATE OR REPLACE FUNCTION public.send_broadcast_notification(title text, body t
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
+
 DECLARE
   v_category text;
 BEGIN

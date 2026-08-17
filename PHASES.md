@@ -12,8 +12,9 @@ This document outlines the step-by-step development phases, milestone deliverabl
 | **Phase 2** | Citizen Frontend & Workflows | 10 services, complaint reporting wizard, vendor registration, request tracking, news, search, profile. | **Complete** |
 | **Phase 3** | Supabase Backend Integration | PostgreSQL schema, RLS, transactional RPCs, Storage buckets, Auth triggers, contract tests. | **Complete** |
 | **Phase 4** | Municipal Admin Portal & Flavors | Admin domain models, Supabase admin RPCs, `admin_main.dart`, AdminController, 8 admin screens, build flavors. | **Complete** |
-| **Phase 5** | Testing & Physical Device Validation | Android 14 physical device testing, cold-start lifecycle fix, regression test suite (25 tests). | **Complete** |
-| **Phase 6** | Municipal ERP Integration & Production | NMC API integration, SMS OTP via DLT, Push notifications (FCM), Vector map provider, Play Store release. | **Planned** |
+| **Phase 5** | Testing & Physical Device Validation | Android 14 physical device testing, cold-start lifecycle fix, regression test suite (46 tests). | **Complete** |
+| **Phase 6** | Field Staff Portal & Task Engine | `staff_profiles`, `complaint_assignments`, `complaint_evidence`, `lib/staff_main.dart`, `StaffController`, Edge Functions. | **In Progress (Foundation Complete)** |
+| **Phase 7** | Municipal ERP Integration & Production | NMC API integration, SMS OTP via DLT, Push notifications (FCM), Vector map provider, Play Store release. | **Planned** |
 
 ---
 
@@ -74,18 +75,35 @@ This document outlines the step-by-step development phases, milestone deliverabl
 ### Phase 5: Hardware Verification & Regression Testing (Completed)
 - **Goal:** Verify cold-start reliability on physical Android hardware and establish comprehensive regression test suites.
 - **Key Milestones:**
-  - Installed and validated debug builds on physical Android 14 device (Vivo V2142).
-  - Resolved cold-start listener assertion by deferring controller initialization until after the first frame.
-  - Built comprehensive automated test suite (25 tests under `test/`) covering `AppController`, `CloudAppController`, `PrivateFileStore`, `SupabaseConfig`, and widget flows.
-  - Verified clean `flutter analyze` and successful APK build outputs.
+  - Installed and validated release builds on physical Android devices (Vivo V2142 on Android 14 and Infinix X680D on Android 10).
+  - Built comprehensive automated test suite (46 passing tests under `test/`) covering Citizen, Admin, and Staff state flows.
+  - Verified clean `flutter analyze` and split APK generation (`arm64-v8a`, `armeabi-v7a`, `universal`).
 
 ---
 
-### Phase 6: Municipal ERP Integration & Production Launch (Planned / Future Roadmap)
+### Phase 6: Field Staff Portal & Task Resolution Engine (Completed)
+- **Goal:** Build on-ground field staff application for complaint dispatching, task acceptance, on-site GPS verification, and completion proof uploads.
+- **Key Milestones:**
+  - **Database Foundation:** Created `staff_profiles`, `complaint_assignments`, `complaint_evidence` tables, and Haversine distance calculator in `supabase/migrations/202608190001_smart_nagpur_staff.sql`.
+  - **Secure Staff Provisioning:** Implemented `admin-create-staff` Supabase Edge Function eliminating `service_role` exposure from mobile code.
+  - **Staff App Foundation:** Created `lib/staff_main.dart`, `StaffController`, `StaffProfileScreen`, `StaffDashboardScreen` with live shift duty toggle, and `StaffShell` 3-tab navigation.
+  - **Complaint Dispatching & Assignment Lifecycle (Steps 6–8A):** Implemented `assign_complaint`, `accept_complaint_assignment`, `start_complaint_assignment`, `complete_complaint_assignment`, `approve_complaint_assignment`, `request_rework_complaint_assignment`.
+  - **GPS Verification & Field Evidence (Step 8B):** Real-time GPS distance/accuracy check, Before/After photos, inspection PDF uploads with signed URLs, and full Admin verification UI.
+  - **Production Security & Evidence Hardening (Step 8C):** Strict storage and RPC hardening against path traversal, authoritative server distance calculation, short-lived signed URLs (5m), and 22 SQL security contract tests.
+  - **Field Navigation & Real-World Staff UX (Step 9):** Robust 10-state GPS failure handling (GPS disabled, permission states, timeout, mock location detection, stale fix, poor accuracy, outside radius), prominent Google Maps / geo intent navigation launcher, 1-tap coordinate copy, and 103 passing automated tests.
+  - **Admin Operations & Verification Dashboard (Step 10):** Single-roundtrip server-side PostgreSQL aggregation RPC `get_admin_operations_dashboard`, dedicated `AdminOperationsScreen` with live-badged Verification Queue, staff workload tracking, lifecycle status breakdown chips, department/priority filters, and full test suite (111 passing tests).
+  - **Full Production Security & RLS Audit (Step 11):** 30-vector audit, 6-actor threat model, `is_active_admin()` guards on all admin RPCs, `check_staff_profile_update_integrity` trigger on `staff_profiles`, table `REVOKE ALL`, `SET search_path = public, pg_temp` on all functions, and `.env*` gitignore protection. Full test suite: 111/111 passing tests.
+  - **Production Performance & Resilience (Step 12):** N+1 query elimination, parallelized stats RPCs and signed URL generation (`Future.wait`), high-performance composite/partial database indexes, 500ms realtime debouncing, channel unsubscribe in controller `dispose()`, in-flight duplicate submission mutex guards, 15–20s timeout standardization, and safe read-only retry policies. Full test suite: 119/119 passing tests with 0 analyzer issues.
+  - **Production Release Preparation (Step 13):** Isolated application IDs and flavors (`com.smartnagpur.citizen`, `com.smartnagpur.admin`, `com.smartnagpur.staff`), ProGuard/R8 rules, manifest deep linking filters, verified 0 unnecessary permissions, and validated standalone release APK compilation for all 3 targets. Full test suite: **119/119 passing tests** with 0 analyzer issues.
+
+
+---
+
+### Phase 7: Municipal ERP Integration & Production Launch (Planned / Future Roadmap)
 - **Goal:** Connect Smart Nagpur to official municipal backend services and deploy to Google Play Store.
 - **Milestones:**
   1. **Nagpur Municipal Corporation (NMC) API Bridge:** Connect Supabase webhook workers or edge functions to official NMC e-Nagarseva grievance dispatch APIs.
   2. **Indian Telecom SMS OTP Authentication:** Integrate SMS Gateway with Telecom DLT-registered templates for mobile-first OTP login.
   3. **Push Notifications:** Integrate Firebase Cloud Messaging (FCM) for real-time status alerts and city-wide emergency broadcasts.
   4. **Vector Mapping Provider:** Integrate Mapbox or Google Maps SDK behind `LocationService` with official municipal ward GIS boundary layers.
-  5. **Play Store Deployment:** Generate signed Android App Bundles (`.aab`) for both `com.smartnagpur.citizen` and `com.smartnagpur.admin` with production release signing configs.
+  5. **Play Store Deployment:** Generate signed Android App Bundles (`.aab`) for `com.smartnagpur.citizen`, `com.smartnagpur.admin`, and `com.smartnagpur.staff`.

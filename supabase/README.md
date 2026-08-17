@@ -4,64 +4,48 @@ This folder contains the database, Row-Level Security, Storage, and RPC contract
 used by the Flutter client. The mobile app uses only the Supabase project URL and
 publishable key. Never add a `service_role` key or database password to Flutter.
 
-## Deploy
+## Deploy Migrations
 
-Apply [`migrations/202608170001_smart_nagpur_backend.sql`](migrations/202608170001_smart_nagpur_backend.sql)
-to the target project with either:
+Apply the versioned SQL migrations to your Supabase project in numerical order via Dashboard SQL Editor or Supabase CLI:
 
-1. Supabase Dashboard -> SQL Editor -> paste the migration -> Run; or
-2. a linked Supabase CLI project -> `supabase db push`.
+1. [`migrations/202608170001_smart_nagpur_backend.sql`](migrations/202608170001_smart_nagpur_backend.sql) (Citizen schema, RPCs, Storage).
+2. [`migrations/202608180001_smart_nagpur_admin.sql`](migrations/202608180001_smart_nagpur_admin.sql) (Admin schema, review queues, RPCs).
+3. [`migrations/202608190001_smart_nagpur_staff.sql`](migrations/202608190001_smart_nagpur_staff.sql) (Staff profiles, task assignments, evidence bucket, Haversine distance calculator).
+
+### Deploy Edge Functions
+```bash
+supabase functions deploy admin-create-staff --no-verify-jwt
+```
 
 A publishable mobile key cannot apply database DDL. Deployment requires an
 authorized Dashboard user or a locally authenticated/linked Supabase CLI; do not
 work around this by placing a secret or service-role key in the app.
 
-The migration is safe to rerun. It creates/backfills a profile for every existing
-`auth.users` row, installs the new-user trigger, creates both private buckets,
-replaces the RPCs/policies, and reapplies least-privilege grants.
+The migrations are safe to rerun. They create/backfill profiles, install triggers, create private storage buckets, configure RLS, and apply least-privilege grants.
 
-Enable Email/Password authentication in the Dashboard and keep email confirmation
-enabled. In **Authentication -> URL Configuration -> Redirect URLs**, allow this
-exact Android deep link (including the trailing slash):
+Enable Email/Password authentication in the Dashboard and keep email confirmation enabled. In **Authentication -> URL Configuration -> Redirect URLs**, allow these exact Android deep links (including trailing slashes):
 
 ```text
 com.smartnagpur.citizen://login-callback/
+com.smartnagpur.admin://login-callback/
+com.smartnagpur.staff://login-callback/
 ```
 
-It is used for both email confirmation and password recovery. The Flutter
-configuration must use the project root URL (for example,
-`https://PROJECT.supabase.co`), not the `/rest/v1` endpoint.
+After deployment, run the schema tests in the SQL Editor:
+- [`tests/schema_contract.sql`](tests/schema_contract.sql)
+- [`tests/202608190001_smart_nagpur_staff_test.sql`](tests/202608190001_smart_nagpur_staff_test.sql)
 
-After deployment, run [`tests/schema_contract.sql`](tests/schema_contract.sql) in
-the SQL Editor. A successful run returns `Smart Nagpur schema contract: OK`.
+---
 
-## Ownership and write model
+## Storage Contracts
 
-- Every citizen-owned row carries either `profiles.id` or `owner_id`, equal to
-  `auth.uid()`.
-- Authenticated users can select only their own rows.
-- Profile rows are inserted by the `auth.users` trigger. Citizens may update only
-  `name`, `phone`, and `address`; `email` is synchronized from Auth. `avatar_path`
-  is reserved for a future server-managed avatar bucket and is not client-writable.
-- Citizens may update only `notifications.is_read` on their notifications.
-- Complaint/vendor creation is available only through the authenticated
-  `SECURITY DEFINER` submit RPCs. Clients have no direct insert/update permission
-  on workflow tables and cannot change status or timeline rows.
-- All public RPCs authenticate `auth.uid()`, scope reads/writes to that owner, and
-  use an empty fixed `search_path`.
+The migrations configure three private storage buckets:
 
-Municipal workflow code should run in a trusted server context when changing
-statuses or inserting later timeline/notification rows. Never expose a
-service-role credential to the app.
-
-## Storage contract
-
-The migration creates these private buckets:
-
-| Bucket | Limit | MIME types |
-| --- | ---: | --- |
-| `complaint-photos` | 10 MB | JPEG, PNG, WebP |
-| `vendor-documents` | 10 MB | PDF, JPEG, PNG |
+| Bucket | Limit | MIME types | Description |
+| --- | ---: | --- | :--- |
+| `complaint-photos` | 10 MB | JPEG, PNG, WebP | Citizen grievance photos |
+| `vendor-documents` | 10 MB | PDF, JPEG, PNG | Vendor identity & KYC documents |
+| `complaint-evidence` | 10 MB | JPEG, PNG, WebP | Field staff resolution proof photos |
 
 For both buckets, the object name is exactly:
 

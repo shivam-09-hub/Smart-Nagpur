@@ -45,18 +45,23 @@ This document outlines the authoritative rules, architectural constraints, secur
 ### 3.1. Credential Security
 - **NEVER** embed, hardcode, or commit a Supabase `service_role` secret key, database password, or administrative JWT into the Flutter application.
 - The client application MUST only receive a public `SUPABASE_PUBLISHABLE_KEY` (or legacy `anon` key) validated through `SupabaseConfig.validate()`.
-- Admin permissions are enforced strictly on the PostgreSQL backend using Row-Level Security (RLS) policies and `admin_profiles` lookups, never through client-side overrides.
+- Administrative and staff user provisioning must occur server-side (e.g. Supabase Edge Function `admin-create-staff`) with caller role verification, never via client-side Auth Admin SDK calls.
+- Admin and staff permissions are enforced strictly on the PostgreSQL backend using Row-Level Security (RLS) policies and database lookups, never through client-side overrides.
 
 ### 3.2. File Upload & Storage Rules
-- All file uploads to Supabase Storage must use private buckets (`complaint-photos`, `vendor-documents`).
-- Object paths MUST follow the owner-prefixed pattern: `<auth.uid()>/<upload-group UUID>/<file UUID>.<extension>`.
+- All file uploads to Supabase Storage must use private buckets (`complaint-photos`, `vendor-documents`, `complaint-evidence`).
+- Object paths MUST follow the owner/staff-prefixed pattern:
+  - Complaint Photos: `<auth.uid()>/<upload-group UUID>/<file UUID>.<extension>`
+  - Vendor Documents: `<auth.uid()>/<upload-group UUID>/<file UUID>.<extension>`
+  - Complaint Evidence: `<staff_uid>/<complaint_id>/<file UUID>.<extension>`
 - File validation invariants:
   - **Complaint Photos:** Allowed extensions: `.jpg`, `.jpeg`, `.png`, `.webp`. Maximum size: 10 MiB per image (up to 3 images).
   - **Vendor Documents:** Allowed extensions: `.pdf`, `.jpg`, `.jpeg`, `.png`. Maximum size: 10 MiB per document.
+  - **Complaint Evidence:** Allowed extensions: `.jpg`, `.jpeg`, `.png`, `.webp`. Maximum size: 10 MiB per photo.
 - If a submission RPC fails after files are uploaded, the newly uploaded objects should be cleaned up / rolled back.
 
 ### 3.3. Deep Link Security
-- Deep links for authentication (`com.smartnagpur.citizen://login-callback/` and `com.smartnagpur.admin://login-callback/`) must be exact matches on the Supabase Redirect URLs allowlist, including the trailing slash.
+- Deep links for authentication (`com.smartnagpur.citizen://login-callback/`, `com.smartnagpur.admin://login-callback/`, and `com.smartnagpur.staff://login-callback/`) must be exact matches on the Supabase Redirect URLs allowlist, including the trailing slash.
 
 ---
 

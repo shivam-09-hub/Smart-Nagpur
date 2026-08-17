@@ -4,9 +4,10 @@
 **Platform:** Flutter (Android Mobile Application & Admin Portal)  
 **Backend:** Supabase (Auth, PostgreSQL, Storage, RLS, RPCs)  
 **Target Municipality:** Nagpur Municipal Corporation (NMC), Maharashtra, India  
-**Target Package IDs:** `com.smartnagpur.citizen` (Citizen App) & `com.smartnagpur.admin` (Admin App)  
+**Target Package IDs:** `com.smartnagpur.citizen` (Citizen App), `com.smartnagpur.admin` (Admin App), `com.smartnagpur.staff` (Staff App)  
 **Document Version:** 1.0.0  
-**Status:** Implemented & Verified (Development / Pre-Production Milestone)
+**Status:** Implemented & Verified (Production Ready Milestone)
+
 
 ---
 
@@ -29,7 +30,8 @@
 | :--- | :--- | :--- |
 | **Citizens of Nagpur** | Wants quick, painless reporting of civic problems in their ward; needs proof and live tracking of municipal response; needs local language support (Marathi). | Home, 10 Civic Services, Complaint Wizard (GPS + Photos), My Requests (Timeline), Notifications, City News, Profile/Settings (Marathi/English). |
 | **Street Vendors & Hawkers** | Needs official permits for designated vending zones, certificate renewals, document verification, and operating schedule approvals without bureaucratic delays. | Vendor Hub, 4-Step Vendor Application Wizard, Document Upload Center, Zone Explorer, Application Status Tracker, License Renewal. |
-| **Municipal Review Officers & Admins** | Needs to review, verify, reject, or assign civic complaints; inspect vendor documents; assign field workers; broadcast alerts; manage suspicious user activity. | Admin Login, Admin Dashboard (KPIs & Metrics), Complaint Triage Queue, Vendor Document Reviewer, Broadcast Composer, User Suspension Manager. |
+| **Municipal Review Officers & Admins** | Needs to review, verify, reject, or assign civic complaints; inspect vendor documents; assign field workers; broadcast alerts; manage suspicious user activity; provision field staff accounts. | Admin Login, Admin Dashboard (KPIs & Metrics), Complaint Triage Queue, Vendor Document Reviewer, Broadcast Composer, User Suspension Manager, Staff Provisioning. |
+| **Field Maintenance Staff** | Needs direct access to assigned field tasks, on-duty shift toggle, GPS distance verification, and before/after resolution evidence uploads. | Staff Login, Staff Dashboard, Duty Toggle, Task Dispatching, Evidence Camera, Profile. |
 
 ---
 
@@ -39,8 +41,8 @@
 - **Bilingual Interface:** Full support for English (`en`) and Marathi (`mr`).
 - **Splash & Onboarding Walkthrough:** Introductory slides introducing civic reporting, vendor permits, and request tracking with persistent completion flags.
 - **Authentication Modes:**
-  - **Email & Password:** Secure sign-up, login, and logout backed by Supabase Auth.
-  - **Password Recovery & Email Confirmation:** Secure deep links via Android custom scheme `com.smartnagpur.citizen://login-callback/` and `com.smartnagpur.admin://login-callback/`.
+  - **Email & Password:** Secure sign-up, login, and logout backed by Supabase Auth across Citizen, Admin, and Staff applications.
+  - **Password Recovery & Email Confirmation:** Secure deep links via Android custom scheme `com.smartnagpur.citizen://login-callback/`, `com.smartnagpur.admin://login-callback/`, and `com.smartnagpur.staff://login-callback/`.
   - **Offline Demo Mode:** Explicit guest/demo sandbox with sample data; strictly local-only and isolated from cloud storage.
 
 ### 3.2. 10 Core Municipal Civic Services
@@ -91,15 +93,22 @@ The platform structures all urban grievances into 10 distinct service domains:
 
 ### 3.8. Municipal Admin Portal (`com.smartnagpur.admin`)
 - **Role-Based Access Control (RBAC):**
-  - `superAdmin`: Unrestricted system oversight and configuration.
-  - `complaintReviewer`: Triage, update status, and add remarks to complaints.
+  - `superAdmin`: Unrestricted system oversight, configuration, and staff provisioning.
+  - `complaintReviewer`: Triage, update status, assign field workers, and add remarks to complaints.
   - `vendorReviewer`: Assess vendor applications, verify uploaded documents, approve/reject permits.
   - `notificationManager`: Compose broadcast alerts and targeted citizen notifications.
-  - `userManager`: Audit user accounts, suspend bad actors, and reactivate accounts.
+  - `userManager`: Audit user accounts, suspend bad actors, reactivate accounts, and create staff profiles.
   - `reportViewer`: High-level metrics, daily/monthly resolution stats.
 - **Live Admin Dashboard:** Resolution rate KPI, vendor approval rate, pending review queues, and daily trend charts.
 - **Complaint & Vendor Review Workflows:** Detailed inspection screens with full document viewing, photo review, location maps, status update modal, and official review scoring.
 - **Broadcast Composer:** Instant system-wide announcements by category (Emergency, Alert, Info, Event).
+
+### 3.9. Field Staff Application (`lib/staff_main.dart`)
+- **Role Hierarchy:** Field Worker (`FIELD_WORKER`), Supervisor (`SUPERVISOR`), Department Officer (`OFFICER`).
+- **Secure Provisioning:** Created exclusively server-side via Supabase Edge Function (`admin-create-staff`).
+- **On-Duty Shift Management:** Dynamic duty toggle with real-time availability synchronization.
+- **Task Resolution Engine (In-Progress):** Direct queue of assigned grievances with location coordinates, distance validation via Haversine RPC, before/after evidence photos, and resolution milestone submission.
+
 
 ---
 

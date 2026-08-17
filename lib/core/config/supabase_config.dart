@@ -18,7 +18,11 @@ class SupabaseConfig {
   static const defaultProjectUrl = 'https://hcpcycfvupjuklhcaxzg.supabase.co';
   static const defaultPublishableKey =
       'sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y';
-  static const authCallbackUrl = 'com.smartnagpur.citizen://login-callback/';
+  static const citizenAuthCallbackUrl = 'com.smartnagpur.citizen://login-callback/';
+  static const adminAuthCallbackUrl = 'com.smartnagpur.admin://login-callback/';
+  static const staffAuthCallbackUrl = 'com.smartnagpur.staff://login-callback/';
+  static const authCallbackUrl = citizenAuthCallbackUrl;
+
 
   final String projectUrl;
   final String publishableKey;

@@ -8,6 +8,7 @@ import 'package:smart_nagpur/features/admin/presentation/admin_complaint_detail_
 import 'package:smart_nagpur/features/admin/presentation/admin_dashboard_screen.dart';
 import 'package:smart_nagpur/features/admin/presentation/admin_login_screen.dart';
 import 'package:smart_nagpur/features/admin/presentation/admin_notifications_screen.dart';
+import 'package:smart_nagpur/features/admin/presentation/admin_operations_screen.dart';
 import 'package:smart_nagpur/features/admin/presentation/admin_users_screen.dart';
 import 'package:smart_nagpur/features/admin/presentation/admin_vendor_detail_screen.dart';
 import 'package:smart_nagpur/features/admin/presentation/admin_vendors_screen.dart';
@@ -102,6 +103,10 @@ Route<dynamic> _buildAdminRoute(
       return MaterialPageRoute(
         builder: (_) => AdminDashboardScreen(controller: controller),
       );
+    case '/admin/operations':
+      return MaterialPageRoute(
+        builder: (_) => AdminOperationsScreen(controller: controller),
+      );
     case '/admin/complaints':
       return MaterialPageRoute(
         builder: (_) => AdminComplaintsScreen(controller: controller),
@@ -140,3 +145,4 @@ Route<dynamic> _buildAdminRoute(
       );
   }
 }
+

@@ -30,21 +30,20 @@ class SupabaseRemoteDataGateway implements RemoteDataGateway {
     }
     final profile = UserProfile.fromJson(_map(profileJson, 'profile'));
 
-    final complaints = <ComplaintRecord>[];
-    for (final item in _list(root['complaints'], 'complaints')) {
-      complaints.add(
-        await _complaintFromRemote(item, downloadMissingFiles: true),
-      );
-    }
-    final vendorApplications = <VendorApplication>[];
-    for (final item in _list(
-      root['vendorApplications'],
-      'vendorApplications',
-    )) {
-      vendorApplications.add(
-        await _vendorApplicationFromRemote(item, downloadMissingFiles: true),
-      );
-    }
+    final complaintsList = _list(root['complaints'], 'complaints');
+    final complaints = await Future.wait(
+      complaintsList.map(
+        (item) => _complaintFromRemote(item, downloadMissingFiles: true),
+      ),
+    );
+
+    final vendorList = _list(root['vendorApplications'], 'vendorApplications');
+    final vendorApplications = await Future.wait(
+      vendorList.map(
+        (item) => _vendorApplicationFromRemote(item, downloadMissingFiles: true),
+      ),
+    );
+
     final notifications = _list(root['notifications'], 'notifications')
         .map((item) => AppNotification.fromJson(_map(item, 'notification')))
         .toList(growable: false);
@@ -56,6 +55,7 @@ class SupabaseRemoteDataGateway implements RemoteDataGateway {
       notifications: notifications,
     );
   }
+
 
   @override
   Future<UserProfile> saveProfile(UserProfile profile) async {
@@ -224,16 +224,15 @@ class SupabaseRemoteDataGateway implements RemoteDataGateway {
   }) async {
     final json = Map<String, Object?>.from(_map(value, 'complaint'));
     final photos = _list(json.remove('photos'), 'complaint.photos');
-    final photoPaths = <String>[];
-    for (final item in photos) {
-      final reference = RemoteFileReference.fromJson(
-        _map(item, 'complaint photo'),
-      );
-      photoPaths.add(
-        localPathsByObject[reference.objectPath] ??
-            (downloadMissingFiles ? await _downloadToCache(reference) : ''),
-      );
-    }
+    final photoPaths = await Future.wait(
+      photos.map((item) async {
+        final reference = RemoteFileReference.fromJson(
+          _map(item, 'complaint photo'),
+        );
+        return localPathsByObject[reference.objectPath] ??
+            (downloadMissingFiles ? await _downloadToCache(reference) : '');
+      }),
+    );
     json['photoPaths'] = photoPaths;
     _validateComplaint(json);
     return ComplaintRecord.fromJson(json);
@@ -252,24 +251,26 @@ class SupabaseRemoteDataGateway implements RemoteDataGateway {
       details.remove('documents'),
       'vendor application documents',
     );
-    final localDocuments = <Map<String, Object?>>[];
-    for (final item in remoteDocuments) {
-      final remote = _map(item, 'vendor document');
-      final reference = RemoteFileReference.fromJson(remote);
-      localDocuments.add({
-        'type': remote['type'] as String? ?? '',
-        'label': remote['label'] as String? ?? '',
-        'requirement': remote['requirement'] as String? ?? 'optional',
-        'path':
-            localPathsByObject[reference.objectPath] ??
-            (downloadMissingFiles ? await _downloadToCache(reference) : ''),
-      });
-    }
+    final localDocuments = await Future.wait(
+      remoteDocuments.map((item) async {
+        final remote = _map(item, 'vendor document');
+        final reference = RemoteFileReference.fromJson(remote);
+        final path = localPathsByObject[reference.objectPath] ??
+            (downloadMissingFiles ? await _downloadToCache(reference) : '');
+        return <String, Object?>{
+          'type': remote['type'] as String? ?? '',
+          'label': remote['label'] as String? ?? '',
+          'requirement': remote['requirement'] as String? ?? 'optional',
+          'path': path,
+        };
+      }),
+    );
     details['documents'] = localDocuments;
     json['details'] = details;
     _validateVendorApplication(json);
     return VendorApplication.fromJson(json);
   }
+
 
   void _validateComplaint(Map<String, Object?> json) {
     _requiredString(json, 'id');

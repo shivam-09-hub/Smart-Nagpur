@@ -10,18 +10,30 @@ This is the admin panel for the Smart Nagpur municipal services application. The
 - Vendor application approval rate
 - Quick action buttons for all major functions
 
-### Complaint Management
-- View all pending complaints with filters
+### Complaint Management & Field Staff Dispatching
+- View all pending complaints with filters (department, priority, status)
 - Detailed complaint review with photos and location
+- Assign complaints to active on-duty field workers with department validation
+- Reassign complaints when needed
 - Update complaint status and add timeline entries
 - Submit detailed reviews with ratings
 - Categorized view by service type
+
+### Field Operations & Verification Dashboard
+- Single-roundtrip server-side aggregation (`get_admin_operations_dashboard`)
+- Live Verification Queue tab displaying completed complaints awaiting inspection
+- Evidence inspection gallery with Before/After photos and inspection PDF download
+- GPS proximity and accuracy badge verification
+- Staff Workload tab tracking active technicians, on-duty status, and assigned tasks
+- Complaint & Assignment status breakdown chips with instant filter resets
+- 1-tap Approve and Rework request actions
 
 ### Vendor Application Management
 - Review pending vendor applications
 - View applicant details and documents
 - Approve/reject applications with comments
 - Track application status through timeline
+
 
 ### Notification Management
 - Send broadcast notifications to all users

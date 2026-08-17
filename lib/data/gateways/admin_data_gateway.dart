@@ -3,6 +3,7 @@ import 'package:smart_nagpur/domain/domain.dart';
 abstract class AdminDataGateway {
   // Dashboard & Stats
   Future<AdminStats> getAdminStats();
+  Future<AdminOperationsDashboard> getOperationsDashboard({AdminOperationsFilter? filter});
 
   // Complaints
   Future<List<ComplaintRecord>> getPendingComplaints({
@@ -65,7 +66,41 @@ abstract class AdminDataGateway {
   Future<List<Map<String, dynamic>>> getDailyStats(int days);
   Future<Map<String, dynamic>> getMonthlyReport(int month, int year);
 
+  // Staff Management
+  Future<StaffProfile> createStaff({
+    required String name,
+    required String email,
+    required String employeeId,
+    required StaffDepartment department,
+    StaffRole role = StaffRole.fieldWorker,
+    String phone = '',
+    String zone = 'ALL',
+    String ward = '',
+    String? password,
+  });
+  Future<List<StaffProfile>> getStaffMembers({
+    StaffDepartment? department,
+    bool? isActive,
+  });
+  Future<StaffProfile?> getStaffMember(String staffId);
+
+  // Complaint Assignments & Evidence
+  Future<ComplaintAssignment> assignComplaint({
+    required String complaintId,
+    required String staffId,
+    AssignmentPriority priority = AssignmentPriority.medium,
+    String instructions = '',
+  });
+  Future<ComplaintAssignment?> getComplaintAssignment(String assignmentId);
+  Future<List<ComplaintAssignment>> getComplaintAssignmentsHistory(String complaintId);
+  Future<ComplaintAssignment> approveComplaintAssignment(String assignmentId, {String reviewNotes = ''});
+  Future<ComplaintAssignment> requestReworkComplaintAssignment(String assignmentId, {String reworkInstructions = ''});
+  Future<List<ComplaintEvidence>> getComplaintEvidence(String complaintId);
+  Future<String> getEvidenceSignedUrl(String objectPath);
+
   // Realtime Live Sync
+
   void subscribeToAdminLiveUpdates(void Function() onUpdate);
   void unsubscribeFromAdminLiveUpdates();
 }
+

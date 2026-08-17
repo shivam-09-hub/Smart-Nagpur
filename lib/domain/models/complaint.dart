@@ -136,6 +136,8 @@ class ComplaintRecord {
     this.citizenAddress,
     this.extraFields = const {},
     this.timeline = const [],
+    this.currentAssignmentId,
+    this.assignedDepartment,
     this.isDemo = true,
   });
 
@@ -152,12 +154,16 @@ class ComplaintRecord {
   final DateTime updatedAt;
   final ComplaintStatus status;
   final List<RequestTimelineEntry> timeline;
+  final String? currentAssignmentId;
+  final String? assignedDepartment;
   final bool isDemo;
 
   ComplaintRecord copyWith({
     ComplaintStatus? status,
     DateTime? updatedAt,
     List<RequestTimelineEntry>? timeline,
+    String? currentAssignmentId,
+    String? assignedDepartment,
   }) {
     return ComplaintRecord(
       id: id,
@@ -173,6 +179,8 @@ class ComplaintRecord {
       updatedAt: updatedAt ?? this.updatedAt,
       status: status ?? this.status,
       timeline: timeline ?? this.timeline,
+      currentAssignmentId: currentAssignmentId ?? this.currentAssignmentId,
+      assignedDepartment: assignedDepartment ?? this.assignedDepartment,
       isDemo: isDemo,
     );
   }
@@ -191,16 +199,20 @@ class ComplaintRecord {
     'updatedAt': updatedAt.toIso8601String(),
     'status': status.name,
     'timeline': timeline.map((entry) => entry.toJson()).toList(),
+    if (currentAssignmentId != null) 'current_assignment_id': currentAssignmentId,
+    if (assignedDepartment != null) 'assigned_department': assignedDepartment,
     'isDemo': isDemo,
   };
 
   factory ComplaintRecord.fromJson(Map<String, Object?> json) {
     return ComplaintRecord(
       id: json['id'] as String? ?? '',
-      serviceType: serviceTypeFromJson(json['serviceType']),
+      serviceType: serviceTypeFromJson(json['serviceType'] ?? json['service_type']),
       issue: json['issue'] as String? ?? '',
       description: json['description'] as String? ?? '',
-      photoPaths: (json['photoPaths'] as List<Object?>? ?? const [])
+      photoPaths: (json['photoPaths'] as List<Object?>? ??
+              json['photo_paths'] as List<Object?>? ??
+              const [])
           .whereType<String>()
           .toList(),
       location: ProblemLocation.fromJson(
@@ -208,16 +220,16 @@ class ComplaintRecord {
           json['location'] as Map? ?? const <String, Object?>{},
         ),
       ),
-      contactPhone: json['contactPhone'] as String? ?? '',
-      citizenAddress: json['citizenAddress'] as String?,
+      contactPhone: json['contactPhone'] as String? ?? json['contact_phone'] as String? ?? '',
+      citizenAddress: json['citizenAddress'] as String? ?? json['citizen_address'] as String?,
       extraFields: Map<String, String>.from(
-        json['extraFields'] as Map? ?? const <String, String>{},
+        json['extraFields'] as Map? ?? json['extra_fields'] as Map? ?? const <String, String>{},
       ),
       createdAt:
-          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+          DateTime.tryParse(json['createdAt'] as String? ?? json['created_at'] as String? ?? '') ??
           DateTime.now(),
       updatedAt:
-          DateTime.tryParse(json['updatedAt'] as String? ?? '') ??
+          DateTime.tryParse(json['updatedAt'] as String? ?? json['updated_at'] as String? ?? '') ??
           DateTime.now(),
       status: complaintStatusFromJson(json['status']),
       timeline: (json['timeline'] as List<Object?>? ?? const [])
@@ -227,7 +239,10 @@ class ComplaintRecord {
                 RequestTimelineEntry.fromJson(Map<String, Object?>.from(entry)),
           )
           .toList(),
-      isDemo: json['isDemo'] as bool? ?? true,
+      currentAssignmentId: json['current_assignment_id'] as String? ?? json['currentAssignmentId'] as String?,
+      assignedDepartment: json['assigned_department'] as String? ?? json['assignedDepartment'] as String?,
+      isDemo: json['isDemo'] as bool? ?? json['is_demo'] as bool? ?? true,
     );
   }
 }
+

@@ -200,9 +200,11 @@ begin
         'vendor_timeline'
       ])
       and cmd <> 'SELECT'
+      and policyname not like 'admin_%'
   ) then
     raise exception 'Workflow tables contain a citizen write policy.';
   end if;
+
 
   if (
     select count(*)

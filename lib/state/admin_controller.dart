@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:smart_nagpur/data/gateways/admin_auth_gateway.dart';
 import 'package:smart_nagpur/data/gateways/admin_data_gateway.dart';
@@ -15,13 +17,22 @@ class AdminController extends ChangeNotifier {
   List<VendorApplication> _pendingApplications = [];
   List<AppNotification> _adminNotifications = [];
   List<UserProfile> _users = [];
+  AdminOperationsDashboard? _operationsDashboard;
+  AdminOperationsFilter _operationsFilter = const AdminOperationsFilter();
 
   bool _isLoading = false;
   String? _error;
 
+  Timer? _realtimeDebounceTimer;
+  final Set<String> _inFlightComplaints = <String>{};
+  final Set<String> _inFlightAssignments = <String>{};
+  final Set<String> _inFlightApplications = <String>{};
+
   // Getters
   AdminProfile? get currentAdmin => _currentAdmin;
   AdminStats? get adminStats => _adminStats;
+  AdminOperationsDashboard? get operationsDashboard => _operationsDashboard;
+  AdminOperationsFilter get operationsFilter => _operationsFilter;
   List<ComplaintRecord> get pendingComplaints => _pendingComplaints;
   List<VendorApplication> get pendingApplications => _pendingApplications;
   List<AppNotification> get adminNotifications => _adminNotifications;
@@ -29,6 +40,10 @@ class AdminController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _currentAdmin != null;
+
+  bool isComplaintInFlight(String complaintId) => _inFlightComplaints.contains(complaintId);
+  bool isAssignmentInFlight(String assignmentId) => _inFlightAssignments.contains(assignmentId);
+  bool isApplicationInFlight(String applicationId) => _inFlightApplications.contains(applicationId);
 
   bool get canReviewComplaints =>
       _currentAdmin?.role.canReviewComplaints ?? false;
@@ -58,6 +73,8 @@ class AdminController extends ChangeNotifier {
   Future<void> logoutAdmin() async {
     try {
       _isLoading = true;
+      _realtimeDebounceTimer?.cancel();
+      _realtimeDebounceTimer = null;
       dataGateway.unsubscribeFromAdminLiveUpdates();
       await authGateway.logoutAdmin();
       _currentAdmin = null;
@@ -66,6 +83,9 @@ class AdminController extends ChangeNotifier {
       _pendingApplications = [];
       _adminNotifications = [];
       _users = [];
+      _inFlightComplaints.clear();
+      _inFlightAssignments.clear();
+      _inFlightApplications.clear();
       _error = null;
       notifyListeners();
     } catch (e) {
@@ -90,23 +110,34 @@ class AdminController extends ChangeNotifier {
   }
 
   void _subscribeToAdminLiveSync() {
-    dataGateway.subscribeToAdminLiveUpdates(() async {
-      try {
-        _adminStats = await dataGateway.getAdminStats();
-        _pendingComplaints = await dataGateway.getPendingComplaints();
-        _pendingApplications = await dataGateway.getPendingApplications();
-        notifyListeners();
-      } catch (e) {
-        debugPrint('Admin realtime live sync refresh failed: $e');
-      }
+    dataGateway.subscribeToAdminLiveUpdates(() {
+      _realtimeDebounceTimer?.cancel();
+      _realtimeDebounceTimer = Timer(const Duration(milliseconds: 500), () async {
+        try {
+          final results = await Future.wait([
+            dataGateway.getAdminStats(),
+            dataGateway.getPendingComplaints(),
+            dataGateway.getPendingApplications(),
+          ]);
+          _adminStats = results[0] as AdminStats;
+          _pendingComplaints = results[1] as List<ComplaintRecord>;
+          _pendingApplications = results[2] as List<VendorApplication>;
+          notifyListeners();
+        } catch (e) {
+          debugPrint('Admin realtime live sync refresh failed: $e');
+        }
+      });
     });
   }
 
   @override
   void dispose() {
+    _realtimeDebounceTimer?.cancel();
+    _realtimeDebounceTimer = null;
     dataGateway.unsubscribeFromAdminLiveUpdates();
     super.dispose();
   }
+
 
   // Dashboard & Stats
   Future<void> loadAdminStats() async {
@@ -156,6 +187,8 @@ class AdminController extends ChangeNotifier {
     ComplaintStatus status,
     String notes,
   ) async {
+    if (_inFlightComplaints.contains(complaintId)) return false;
+    _inFlightComplaints.add(complaintId);
     try {
       _isLoading = true;
       await dataGateway.updateComplaintStatus(
@@ -172,6 +205,7 @@ class AdminController extends ChangeNotifier {
       notifyListeners();
       return false;
     } finally {
+      _inFlightComplaints.remove(complaintId);
       _isLoading = false;
     }
   }
@@ -227,6 +261,8 @@ class AdminController extends ChangeNotifier {
     VendorStatus status,
     String notes,
   ) async {
+    if (_inFlightApplications.contains(applicationId)) return false;
+    _inFlightApplications.add(applicationId);
     try {
       _isLoading = true;
       await dataGateway.updateApplicationStatus(
@@ -243,6 +279,7 @@ class AdminController extends ChangeNotifier {
       notifyListeners();
       return false;
     } finally {
+      _inFlightApplications.remove(applicationId);
       _isLoading = false;
     }
   }
@@ -383,8 +420,197 @@ class AdminController extends ChangeNotifier {
     }
   }
 
+  // Staff & Complaint Assignment Management
+  Future<List<StaffProfile>> getStaffMembers({
+    StaffDepartment? department,
+    bool? isActive = true,
+  }) async {
+    try {
+      return await dataGateway.getStaffMembers(
+        department: department,
+        isActive: isActive,
+      );
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return [];
+    }
+  }
+
+  Future<bool> assignComplaint({
+    required String complaintId,
+    required String staffId,
+    AssignmentPriority priority = AssignmentPriority.medium,
+    String instructions = '',
+  }) async {
+    if (_inFlightComplaints.contains(complaintId)) return false;
+    _inFlightComplaints.add(complaintId);
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      await dataGateway.assignComplaint(
+        complaintId: complaintId,
+        staffId: staffId,
+        priority: priority,
+        instructions: instructions,
+      );
+
+      // Refresh complaints list and stats in parallel
+      final results = await Future.wait([
+        dataGateway.getPendingComplaints(),
+        dataGateway.getAdminStats(),
+      ]);
+      _pendingComplaints = results[0] as List<ComplaintRecord>;
+      _adminStats = results[1] as AdminStats;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } finally {
+      _inFlightComplaints.remove(complaintId);
+    }
+  }
+
+  Future<ComplaintAssignment?> getComplaintAssignment(String assignmentId) async {
+    try {
+      return await dataGateway.getComplaintAssignment(assignmentId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<List<ComplaintAssignment>> getComplaintAssignmentsHistory(String complaintId) async {
+    try {
+      return await dataGateway.getComplaintAssignmentsHistory(complaintId);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<bool> approveComplaintAssignment(String assignmentId, {String reviewNotes = ''}) async {
+    if (_inFlightAssignments.contains(assignmentId)) return false;
+    _inFlightAssignments.add(assignmentId);
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      await dataGateway.approveComplaintAssignment(
+        assignmentId,
+        reviewNotes: reviewNotes,
+      );
+
+      final results = await Future.wait([
+        dataGateway.getPendingComplaints(),
+        dataGateway.getAdminStats(),
+      ]);
+      _pendingComplaints = results[0] as List<ComplaintRecord>;
+      _adminStats = results[1] as AdminStats;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } finally {
+      _inFlightAssignments.remove(assignmentId);
+    }
+  }
+
+  Future<bool> requestReworkComplaintAssignment(String assignmentId, {String reworkInstructions = ''}) async {
+    if (_inFlightAssignments.contains(assignmentId)) return false;
+    _inFlightAssignments.add(assignmentId);
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      await dataGateway.requestReworkComplaintAssignment(
+        assignmentId,
+        reworkInstructions: reworkInstructions,
+      );
+
+      final results = await Future.wait([
+        dataGateway.getPendingComplaints(),
+        dataGateway.getAdminStats(),
+      ]);
+      _pendingComplaints = results[0] as List<ComplaintRecord>;
+      _adminStats = results[1] as AdminStats;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } finally {
+      _inFlightAssignments.remove(assignmentId);
+    }
+  }
+
+
+  Future<List<ComplaintEvidence>> getComplaintEvidence(String complaintId) async {
+    try {
+      return await dataGateway.getComplaintEvidence(complaintId);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<String?> getEvidenceSignedUrl(String objectPath) async {
+    try {
+      return await dataGateway.getEvidenceSignedUrl(objectPath);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<void> loadOperationsDashboard({AdminOperationsFilter? filter}) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      if (filter != null) {
+        _operationsFilter = filter;
+      }
+      notifyListeners();
+
+      _operationsDashboard = await dataGateway.getOperationsDashboard(
+        filter: _operationsFilter,
+      );
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void setOperationsFilter(AdminOperationsFilter filter) {
+    _operationsFilter = filter;
+    loadOperationsDashboard(filter: filter);
+  }
+
+  void clearOperationsFilter() {
+    _operationsFilter = const AdminOperationsFilter();
+    loadOperationsDashboard(filter: _operationsFilter);
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();
   }
 }
+
+
+
+

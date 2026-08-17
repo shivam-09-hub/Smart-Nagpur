@@ -155,25 +155,24 @@ class SupabaseAdminAuthGateway implements AdminAuthGateway {
     AdminProfile profile,
   ) async {
     try {
-      // Create auth user
-      final response = await client.auth.admin.createUser(
-        AdminUserAttributes(
-          email: email,
-          password: password,
-          emailConfirm: true,
-        ),
+      final response = await client.functions.invoke(
+        'admin-create-user',
+        body: {
+          'email': email,
+          'password': password,
+          'name': profile.name,
+          'phone': profile.phone,
+          'role': profile.role.name,
+          'user_type': 'admin',
+        },
       );
 
-      // Create admin profile
-      await client.from('admin_profiles').insert({
-        'id': response.user!.id,
-        'name': profile.name,
-        'email': email,
-        'phone': profile.phone,
-        'role': profile.role.name,
-        'is_active': true,
-        'created_at': DateTime.now().toIso8601String(),
-      });
+      if (response.status != 201 && response.status != 200) {
+        final errorMsg = response.data is Map && (response.data as Map)['error'] != null
+            ? (response.data as Map)['error'].toString()
+            : 'Administrative user provisioning must be performed through the secure server endpoint.';
+        throw Exception(errorMsg);
+      }
     } catch (e) {
       rethrow;
     }

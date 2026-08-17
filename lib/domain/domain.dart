@@ -1,10 +1,14 @@
+export 'models/admin_operations.dart';
 export 'models/admin_profile.dart';
 export 'models/admin_review.dart';
 export 'models/admin_stats.dart';
 export 'models/app_notification.dart';
 export 'models/complaint.dart';
+export 'models/complaint_assignment.dart';
+export 'models/complaint_evidence.dart';
 export 'models/news.dart';
 export 'models/problem_location.dart';
 export 'models/service.dart';
+export 'models/staff_profile.dart';
 export 'models/user_profile.dart';
 export 'models/vendor.dart';

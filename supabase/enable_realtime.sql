@@ -48,4 +48,29 @@ BEGIN
   ) THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.admin_reviews;
   END IF;
+
+  -- Add complaint_assignments table
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'complaint_assignments'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.complaint_assignments;
+  END IF;
+
+  -- Add complaint_evidence table
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'complaint_evidence'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.complaint_evidence;
+  END IF;
+
+  -- Add staff_profiles table
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'staff_profiles'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.staff_profiles;
+  END IF;
 END $$;
+

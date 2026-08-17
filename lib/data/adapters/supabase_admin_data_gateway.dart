@@ -10,10 +10,17 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
   @override
   Future<AdminStats> getAdminStats() async {
     try {
-      final complaintStats = await _safeRpcMap('get_complaint_stats');
-      final vendorStats = await _safeRpcMap('get_vendor_stats');
-      final userStats = await _safeRpcMap('get_user_stats');
-      final notificationStats = await _safeRpcMap('get_notification_stats');
+      final results = await Future.wait([
+        _safeRpcMap('get_complaint_stats'),
+        _safeRpcMap('get_vendor_stats'),
+        _safeRpcMap('get_user_stats'),
+        _safeRpcMap('get_notification_stats'),
+      ]);
+
+      final complaintStats = results[0];
+      final vendorStats = results[1];
+      final userStats = results[2];
+      final notificationStats = results[3];
 
       final byServiceRaw = complaintStats['byService'];
       final byStatusRaw = complaintStats['byStatus'];
@@ -76,13 +83,11 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
       );
 
       if (response is List) {
-        final list = <ComplaintRecord>[];
-        for (final item in response) {
-          if (item is Map) {
-            list.add(await _mapComplaintRecord(Map<String, Object?>.from(item)));
-          }
-        }
-        return list;
+        return await Future.wait(
+          response
+              .whereType<Map>()
+              .map((item) => _mapComplaintRecord(Map<String, Object?>.from(item))),
+        );
       }
       return [];
     } catch (e) {
@@ -108,31 +113,29 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
   Future<ComplaintRecord> _mapComplaintRecord(Map<String, Object?> map) async {
     final photosRaw = map['photos'];
     final photoPaths = <String>[];
-    if (photosRaw is List) {
-      for (final item in photosRaw) {
-        if (item is Map) {
+    if (photosRaw is List && photosRaw.isNotEmpty) {
+      final validItems = photosRaw.whereType<Map>().toList();
+      final urls = await Future.wait(
+        validItems.map((item) async {
           final bucket = item['bucket'] as String? ?? 'complaint-photos';
           final objectPath = item['objectPath'] as String? ?? '';
-          if (objectPath.isNotEmpty) {
-            try {
-              final signedUrl = await client.storage
-                  .from(bucket)
-                  .createSignedUrl(objectPath, 60 * 60 * 24);
-              photoPaths.add(signedUrl);
-            } catch (_) {
-              final publicUrl = client.storage
-                  .from(bucket)
-                  .getPublicUrl(objectPath);
-              photoPaths.add(publicUrl);
-            }
+          if (objectPath.isEmpty) return '';
+          try {
+            return await client.storage
+                .from(bucket)
+                .createSignedUrl(objectPath, 60 * 60 * 24);
+          } catch (_) {
+            return client.storage.from(bucket).getPublicUrl(objectPath);
           }
-        }
-      }
+        }),
+      );
+      photoPaths.addAll(urls.where((url) => url.isNotEmpty));
     }
     final json = Map<String, Object?>.from(map);
     json['photoPaths'] = photoPaths;
     return ComplaintRecord.fromJson(json);
   }
+
 
   @override
   Future<void> updateComplaintStatus(
@@ -210,13 +213,11 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
       );
 
       if (response is List) {
-        final list = <VendorApplication>[];
-        for (final item in response) {
-          if (item is Map) {
-            list.add(await _mapVendorApplication(Map<String, Object?>.from(item)));
-          }
-        }
-        return list;
+        return await Future.wait(
+          response
+              .whereType<Map>()
+              .map((item) => _mapVendorApplication(Map<String, Object?>.from(item))),
+        );
       }
       return [];
     } catch (e) {
@@ -245,10 +246,10 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
     if (detailsRaw is Map) {
       final details = Map<String, Object?>.from(detailsRaw);
       final remoteDocs = details['documents'];
-      final localDocs = <Map<String, Object?>>[];
-      if (remoteDocs is List) {
-        for (final item in remoteDocs) {
-          if (item is Map) {
+      if (remoteDocs is List && remoteDocs.isNotEmpty) {
+        final validDocs = remoteDocs.whereType<Map>().toList();
+        final localDocs = await Future.wait(
+          validDocs.map((item) async {
             final bucket = item['bucket'] as String? ?? 'vendor-documents';
             final objectPath = item['objectPath'] as String? ?? '';
             String url = '';
@@ -261,20 +262,23 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
                 url = client.storage.from(bucket).getPublicUrl(objectPath);
               }
             }
-            localDocs.add({
+            return <String, Object?>{
               'type': item['type'] ?? '',
               'label': item['label'] ?? '',
               'requirement': item['requirement'] ?? 'optional',
               'path': url,
-            });
-          }
-        }
+            };
+          }),
+        );
+        details['documents'] = localDocs;
+      } else {
+        details['documents'] = <Map<String, Object?>>[];
       }
-      details['documents'] = localDocs;
       json['details'] = details;
     }
     return VendorApplication.fromJson(json);
   }
+
 
   @override
   Future<void> updateApplicationStatus(
@@ -582,9 +586,279 @@ class SupabaseAdminDataGateway implements AdminDataGateway {
         .subscribe();
   }
 
+  // Staff Management
+  @override
+  Future<StaffProfile> createStaff({
+    required String name,
+    required String email,
+    required String employeeId,
+    required StaffDepartment department,
+    StaffRole role = StaffRole.fieldWorker,
+    String phone = '',
+    String zone = 'ALL',
+    String ward = '',
+    String? password,
+  }) async {
+    try {
+      final response = await client.functions.invoke(
+        'admin-create-staff',
+        body: {
+          'name': name,
+          'email': email,
+          'employee_id': employeeId,
+          'department': department.code,
+          'role': role.code,
+          'phone': phone,
+          'zone': zone,
+          'ward': ward,
+          if (password != null && password.isNotEmpty) 'password': password,
+        },
+      );
+
+      if (response.status != 201 && response.status != 200) {
+        final errorMsg = response.data is Map && (response.data as Map)['error'] != null
+            ? (response.data as Map)['error'].toString()
+            : 'Failed to provision staff member (HTTP ${response.status})';
+        throw Exception(errorMsg);
+      }
+
+      final data = response.data as Map<String, dynamic>;
+      final staffMap = data['staff'] as Map<String, dynamic>;
+      return StaffProfile.fromJson(staffMap);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<StaffProfile>> getStaffMembers({
+    StaffDepartment? department,
+    bool? isActive,
+  }) async {
+    try {
+      var query = client.from('staff_profiles').select();
+      if (department != null) {
+        query = query.eq('department', department.code);
+      }
+      if (isActive != null) {
+        query = query.eq('is_active', isActive);
+      }
+      final response = await query.order('created_at', ascending: false);
+      return (response as List<dynamic>)
+          .map((item) => StaffProfile.fromJson(Map<String, Object?>.from(item)))
+          .toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<StaffProfile?> getStaffMember(String staffId) async {
+    try {
+      final response = await client
+          .from('staff_profiles')
+          .select()
+          .eq('id', staffId)
+          .maybeSingle();
+      if (response == null) return null;
+      return StaffProfile.fromJson(Map<String, Object?>.from(response));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Complaint Assignments
+  @override
+  Future<ComplaintAssignment> assignComplaint({
+    required String complaintId,
+    required String staffId,
+    AssignmentPriority priority = AssignmentPriority.medium,
+    String instructions = '',
+  }) async {
+    try {
+      final response = await client.rpc(
+        'assign_complaint',
+        params: {
+          'p_complaint_id': complaintId,
+          'p_staff_id': staffId,
+          'p_priority': priority.name,
+          'p_instructions': instructions,
+        },
+      );
+
+      final result = Map<String, dynamic>.from(response as Map);
+      final assignmentId = result['assignmentId'] as String;
+
+      // Fetch the newly created assignment with joined staff details
+      final assignment = await getComplaintAssignment(assignmentId);
+      if (assignment != null) return assignment;
+
+      return ComplaintAssignment(
+        id: assignmentId,
+        complaintId: complaintId,
+        staffId: staffId,
+        assignedBy: client.auth.currentUser?.id ?? '',
+        priority: priority,
+        instructions: instructions,
+        assignedAt: DateTime.now(),
+        staffName: result['staffName'] as String?,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<ComplaintAssignment?> getComplaintAssignment(String assignmentId) async {
+    try {
+      final response = await client
+          .from('complaint_assignments')
+          .select('*, staff_profiles(name, employee_id, department)')
+          .eq('id', assignmentId)
+          .maybeSingle();
+
+      if (response == null) return null;
+      return ComplaintAssignment.fromJson(Map<String, dynamic>.from(response));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<ComplaintAssignment>> getComplaintAssignmentsHistory(String complaintId) async {
+    try {
+      final response = await client
+          .from('complaint_assignments')
+          .select('*, staff_profiles(name, employee_id, department)')
+          .eq('complaint_id', complaintId)
+          .order('created_at', ascending: false);
+
+      return (response as List<dynamic>)
+          .map((item) => ComplaintAssignment.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<ComplaintAssignment> approveComplaintAssignment(String assignmentId, {String reviewNotes = ''}) async {
+    try {
+      await client.rpc(
+        'approve_complaint_assignment',
+        params: {
+          'p_assignment_id': assignmentId,
+          'p_review_notes': reviewNotes,
+        },
+      );
+
+      final updated = await getComplaintAssignment(assignmentId);
+      if (updated == null) {
+        throw Exception('Assignment could not be fetched after approval.');
+      }
+      return updated;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<ComplaintAssignment> requestReworkComplaintAssignment(String assignmentId, {String reworkInstructions = ''}) async {
+    try {
+      await client.rpc(
+        'request_rework_complaint_assignment',
+        params: {
+          'p_assignment_id': assignmentId,
+          'p_rework_instructions': reworkInstructions,
+        },
+      );
+
+      final updated = await getComplaintAssignment(assignmentId);
+      if (updated == null) {
+        throw Exception('Assignment could not be fetched after requesting rework.');
+      }
+      return updated;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<ComplaintEvidence>> getComplaintEvidence(String complaintId) async {
+    try {
+      final response = await client
+          .from('complaint_evidence')
+          .select('*, staff_profiles(name, employee_id)')
+          .eq('complaint_id', complaintId)
+          .order('captured_at', ascending: true);
+
+      final items = (response as List<dynamic>)
+          .map((item) => ComplaintEvidence.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+
+      return await Future.wait(
+        items.map((item) async {
+          try {
+            final url = await getEvidenceSignedUrl(item.objectPath);
+            return item.copyWith(signedUrl: url);
+          } catch (_) {
+            return item;
+          }
+        }),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<String> getEvidenceSignedUrl(String objectPath) async {
+    try {
+      return await client.storage
+          .from('complaint-evidence')
+          .createSignedUrl(
+            objectPath,
+            300, // 5 minutes validity (secure short-lived expiration)
+          )
+          .timeout(const Duration(seconds: 15));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+
+  @override
+  Future<AdminOperationsDashboard> getOperationsDashboard({AdminOperationsFilter? filter}) async {
+    try {
+      final response = await client.rpc(
+        'get_admin_operations_dashboard',
+        params: {
+          if (filter?.department != null) 'p_department': filter!.department!.code,
+          if (filter?.priority != null) 'p_priority': filter!.priority!.name,
+          if (filter?.status != null) 'p_status': filter!.status,
+          if (filter?.staffId != null) 'p_staff_id': filter!.staffId,
+          if (filter?.fromDate != null) 'p_from_date': filter!.fromDate!.toIso8601String(),
+          if (filter?.toDate != null) 'p_to_date': filter!.toDate!.toIso8601String(),
+        },
+      );
+
+      if (response == null) {
+        return const AdminOperationsDashboard();
+      }
+
+      return AdminOperationsDashboard.fromJson(Map<String, dynamic>.from(response));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   @override
   void unsubscribeFromAdminLiveUpdates() {
     _adminRealtimeChannel?.unsubscribe();
     _adminRealtimeChannel = null;
   }
 }
+
+
+
+

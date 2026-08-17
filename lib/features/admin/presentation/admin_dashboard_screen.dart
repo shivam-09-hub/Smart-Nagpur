@@ -18,6 +18,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   void initState() {
     super.initState();
     widget.controller.loadAdminStats();
+    widget.controller.loadOperationsDashboard();
+  }
+
+  Future<void> _refreshAll() async {
+    await Future.wait([
+      widget.controller.loadAdminStats(),
+      widget.controller.loadOperationsDashboard(),
+    ]);
   }
 
   @override
@@ -28,7 +36,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: widget.controller.loadAdminStats,
+            onPressed: _refreshAll,
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -82,7 +90,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   Text(widget.controller.error ?? 'Failed to load stats'),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
-                    onPressed: widget.controller.loadAdminStats,
+                    onPressed: _refreshAll,
                     icon: const Icon(Icons.refresh),
                     label: const Text('Retry'),
                   ),
@@ -92,7 +100,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           }
 
           return RefreshIndicator(
-            onRefresh: widget.controller.loadAdminStats,
+            onRefresh: _refreshAll,
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(
                 parent: AlwaysScrollableScrollPhysics(),
@@ -103,6 +111,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 children: [
                   // Header
                   _buildHeader(),
+                  const SizedBox(height: 20),
+
+                  // Operations & Verification Banner
+                  _buildOperationsBanner(),
                   const SizedBox(height: 24),
 
                   // Key metrics
@@ -130,6 +142,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+
   Widget _buildHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,6 +161,95 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
       ],
+    );
+  }
+
+  Widget _buildOperationsBanner() {
+    final ops = widget.controller.operationsDashboard;
+    final queueCount = ops?.awaitingVerificationCount ?? 0;
+    final onDutyStaff = ops?.staffWorkloadSummary.onDutyStaff ?? 0;
+    final inProgressTasks = ops?.staffWorkloadSummary.inProgressTasks ?? 0;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        side: BorderSide(
+          color: queueCount > 0 ? AppColors.warning.withValues(alpha: 0.6) : AppColors.border,
+          width: queueCount > 0 ? 1.5 : 1.0,
+        ),
+      ),
+      color: queueCount > 0 ? AppColors.warning.withValues(alpha: 0.06) : AppColors.surface,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: queueCount > 0 ? AppColors.warning.withValues(alpha: 0.15) : AppColors.primarySoft,
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
+                  ),
+                  child: Icon(
+                    Icons.fact_check_outlined,
+                    size: 20,
+                    color: queueCount > 0 ? AppColors.warning : AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Field Operations & Verification',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        queueCount > 0
+                            ? '$queueCount complaints submitted for verification'
+                            : '$onDutyStaff staff on duty • $inProgressTasks active field tasks',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: queueCount > 0 ? FontWeight.w600 : FontWeight.normal,
+                          color: queueCount > 0 ? AppColors.warning : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.of(context).pushNamed('/admin/operations'),
+                icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                label: Text(
+                  queueCount > 0
+                      ? 'Open Verification Queue ($queueCount)'
+                      : 'View Field Operations & Staff Workload',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: queueCount > 0 ? AppColors.warning : AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -340,6 +442,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           spacing: 12,
           runSpacing: 12,
           children: [
+            _buildActionButton(
+              icon: Icons.fact_check_outlined,
+              label: 'Field Operations',
+              color: AppColors.primary,
+              onTap: () =>
+                  Navigator.of(context).pushNamed('/admin/operations'),
+            ),
             if (widget.controller.canReviewComplaints)
               _buildActionButton(
                 icon: Icons.assignment_turned_in,
