@@ -1277,7 +1277,7 @@ BEGIN
 END $$;
 
 -- -----------------------------------------------------------------------------
--- 8. Row-Level Security (RLS) Policies
+-- 8. Row-Level Security (RLS) Policies & Recursion-Free Helpers
 -- -----------------------------------------------------------------------------
 ALTER TABLE public.staff_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.complaint_assignments ENABLE ROW LEVEL SECURITY;
@@ -1286,6 +1286,58 @@ ALTER TABLE public.complaint_evidence ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.staff_profiles FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.complaint_assignments FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.complaint_evidence FORCE ROW LEVEL SECURITY;
+
+-- 8.0 Security Definer Cross-Table Helpers (Prevents Infinite RLS Recursion)
+CREATE OR REPLACE FUNCTION public.is_complaint_assigned_to_staff(p_complaint_id uuid, p_staff_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.complaint_assignments
+    WHERE complaint_id = p_complaint_id AND staff_id = p_staff_id
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_complaint_owner(p_complaint_id uuid, p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.complaints
+    WHERE id = p_complaint_id AND owner_id = p_user_id
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_complaint_in_staff_department(p_complaint_id uuid, p_department text)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.complaints
+    WHERE id = p_complaint_id AND assigned_department = p_department
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_assignment_active_for_staff(p_assignment_id uuid, p_complaint_id uuid, p_staff_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.complaint_assignments
+    WHERE id = p_assignment_id AND
+          complaint_id = p_complaint_id AND
+          staff_id = p_staff_id AND
+          status IN ('accepted', 'inProgress', 'reworkRequired')
+  );
+$$;
 
 -- 8.1 staff_profiles Policies
 DROP POLICY IF EXISTS staff_profiles_select_self ON public.staff_profiles;
@@ -1319,11 +1371,7 @@ CREATE POLICY complaint_assignments_select ON public.complaint_assignments
     (
       public.is_active_staff() AND
       public.get_staff_role() IN ('SUPERVISOR', 'OFFICER') AND
-      EXISTS (
-        SELECT 1 FROM public.complaints c
-        WHERE c.id = complaint_assignments.complaint_id AND
-              c.assigned_department = public.get_staff_department()
-      )
+      public.is_complaint_in_staff_department(complaint_id, public.get_staff_department())
     )
   );
 
@@ -1342,10 +1390,7 @@ DROP POLICY IF EXISTS complaints_staff_select ON public.complaints;
 CREATE POLICY complaints_staff_select ON public.complaints
   FOR SELECT USING (
     public.is_active_staff() AND (
-      id IN (
-        SELECT complaint_id FROM public.complaint_assignments
-        WHERE staff_id = auth.uid()
-      ) OR
+      public.is_complaint_assigned_to_staff(id, auth.uid()) OR
       (
         public.get_staff_role() IN ('SUPERVISOR', 'OFFICER') AND
         assigned_department = public.get_staff_department()
@@ -1359,13 +1404,7 @@ CREATE POLICY complaint_evidence_insert ON public.complaint_evidence
   FOR INSERT WITH CHECK (
     public.is_active_staff() AND
     staff_id = auth.uid() AND
-    EXISTS (
-      SELECT 1 FROM public.complaint_assignments ca
-      WHERE ca.id = assignment_id AND
-            ca.complaint_id = complaint_evidence.complaint_id AND
-            ca.staff_id = auth.uid() AND
-            ca.status IN ('accepted', 'inProgress', 'reworkRequired')
-    )
+    public.is_assignment_active_for_staff(assignment_id, complaint_id, auth.uid())
   );
 
 DROP POLICY IF EXISTS complaint_evidence_select ON public.complaint_evidence;
@@ -1376,12 +1415,7 @@ CREATE POLICY complaint_evidence_select ON public.complaint_evidence
       staff_id = auth.uid() OR
       public.get_staff_role() IN ('SUPERVISOR', 'OFFICER')
     )) OR
-    (
-      EXISTS (
-        SELECT 1 FROM public.complaints c
-        WHERE c.id = complaint_evidence.complaint_id AND c.owner_id = auth.uid()
-      )
-    )
+    public.is_complaint_owner(complaint_id, auth.uid())
   );
 
 DROP POLICY IF EXISTS complaint_evidence_update ON public.complaint_evidence;
