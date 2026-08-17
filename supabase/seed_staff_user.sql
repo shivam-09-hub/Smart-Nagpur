@@ -1,13 +1,18 @@
 -- =============================================================================
--- SMART NAGPUR — Active Field Staff Account (ramesh.staff@gmail.com)
--- =============================================================================
--- Run this in Supabase Dashboard → SQL Editor to confirm email & link profile
+-- SMART NAGPUR — Link Verified Field Staff Account (ramesh.staff@gmail.com)
 -- =============================================================================
 
+-- 1. Remove old staff profile row with employee_id = 'NMC-RD-101'
+DELETE FROM public.complaint_assignments WHERE staff_id IN (SELECT id FROM public.staff_profiles WHERE employee_id = 'NMC-RD-101' OR email = 'ramesh.staff@gmail.com');
+DELETE FROM public.complaint_evidence WHERE staff_id IN (SELECT id FROM public.staff_profiles WHERE employee_id = 'NMC-RD-101' OR email = 'ramesh.staff@gmail.com');
+DELETE FROM public.staff_profiles WHERE employee_id = 'NMC-RD-101' OR email = 'ramesh.staff@gmail.com';
+
+-- 2. Confirm email in auth.users
 UPDATE auth.users 
 SET email_confirmed_at = now() 
 WHERE email = 'ramesh.staff@gmail.com';
 
+-- 3. Insert fresh linked staff profile
 INSERT INTO public.staff_profiles (
   id,
   name,
