@@ -460,7 +460,7 @@ create or replace function public.handle_new_auth_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = ''
+set search_path = public, pg_temp
 as $$
 begin
   insert into public.profiles (id, name, phone, email)
@@ -493,7 +493,7 @@ create or replace function public.sync_auth_user_email()
 returns trigger
 language plpgsql
 security definer
-set search_path = ''
+set search_path = public, pg_temp
 as $$
 begin
   update public.profiles
