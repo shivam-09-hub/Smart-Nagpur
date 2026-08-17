@@ -860,36 +860,66 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.suspend_user(user_id uuid, reason text)
+CREATE OR REPLACE FUNCTION public.suspend_user(user_id text, reason text)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
+DECLARE
+  v_user_uuid uuid;
 BEGIN
   IF NOT public.is_active_admin() THEN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
+  IF user_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+    v_user_uuid := user_id::uuid;
+  ELSE
+    SELECT id INTO v_user_uuid FROM auth.users WHERE email = lower(trim(user_id));
+    IF v_user_uuid IS NULL THEN
+      SELECT id INTO v_user_uuid FROM public.profiles WHERE email = lower(trim(user_id));
+    END IF;
+  END IF;
+
+  IF v_user_uuid IS NULL THEN
+    RAISE EXCEPTION 'User % not found', user_id;
+  END IF;
+
   INSERT INTO public.user_suspensions (user_id, suspended_by, reason, is_active)
-  VALUES (user_id, auth.uid(), reason, true);
+  VALUES (v_user_uuid, auth.uid(), reason, true);
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.reactivate_user(user_id uuid)
+CREATE OR REPLACE FUNCTION public.reactivate_user(user_id text)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
+DECLARE
+  v_user_uuid uuid;
 BEGIN
   IF NOT public.is_active_admin() THEN
     RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  IF user_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+    v_user_uuid := user_id::uuid;
+  ELSE
+    SELECT id INTO v_user_uuid FROM auth.users WHERE email = lower(trim(user_id));
+    IF v_user_uuid IS NULL THEN
+      SELECT id INTO v_user_uuid FROM public.profiles WHERE email = lower(trim(user_id));
+    END IF;
+  END IF;
+
+  IF v_user_uuid IS NULL THEN
+    RAISE EXCEPTION 'User % not found', user_id;
   END IF;
 
   UPDATE public.user_suspensions
   SET is_active = false, lifted_at = now()
-  WHERE user_suspensions.user_id = reactivate_user.user_id AND is_active = true;
+  WHERE user_suspensions.user_id = v_user_uuid AND is_active = true;
 END;
 $$;
 
@@ -1010,8 +1040,8 @@ REVOKE ALL ON FUNCTION public.get_admin_vendor_applications(integer, integer, te
 REVOKE ALL ON FUNCTION public.get_admin_vendor_application_details(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.admin_update_complaint_status(text, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.admin_update_vendor_status(text, text, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.suspend_user(uuid, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.reactivate_user(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.suspend_user(text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.reactivate_user(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.send_broadcast_notification(text, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.is_active_admin() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.is_super_admin() FROM PUBLIC;
@@ -1034,8 +1064,8 @@ GRANT EXECUTE ON FUNCTION public.get_admin_vendor_applications(integer, integer,
 GRANT EXECUTE ON FUNCTION public.get_admin_vendor_application_details(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_update_complaint_status(text, text, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_update_vendor_status(text, text, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.suspend_user(uuid, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.reactivate_user(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.suspend_user(text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.reactivate_user(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.send_broadcast_notification(text, text, text) TO authenticated;
 
 -- Helper functions need authenticated access for RLS policy evaluation

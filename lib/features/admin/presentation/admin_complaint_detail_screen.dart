@@ -119,7 +119,7 @@ class _AdminComplaintDetailScreenState
     setState(() => _isAssigning = true);
 
     final success = await widget.controller.assignComplaint(
-      complaintId: widget.complaintId,
+      complaintId: _complaint?.id ?? widget.complaintId,
       staffId: _selectedStaff!.id,
       priority: _selectedPriority,
       instructions: _instructionsController.text.trim(),
@@ -994,12 +994,16 @@ class _AdminComplaintDetailScreenState
 
         // Staff Selection Dropdown
         DropdownButtonFormField<StaffProfile>(
+          isExpanded: true,
           initialValue: _selectedStaff,
           items: _availableStaff
               .map(
                 (staff) => DropdownMenuItem(
                   value: staff,
-                  child: Text('${staff.name} (${staff.employeeId} - ${staff.role.label})'),
+                  child: Text(
+                    '${staff.name} (${staff.employeeId} - ${staff.role.label})',
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               )
               .toList(),

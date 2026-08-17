@@ -151,7 +151,7 @@ class _UserTileState extends State<_UserTile> {
     if (confirmed != true) return;
 
     final success = await widget.controller.suspendUser(
-      widget.user.email,
+      widget.user.id,
       _reasonController.text,
     );
 

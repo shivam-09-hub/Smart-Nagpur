@@ -1,5 +1,6 @@
 class UserProfile {
   const UserProfile({
+    this.id = '',
     required this.name,
     required this.phone,
     required this.email,
@@ -7,6 +8,7 @@ class UserProfile {
     this.avatarPath,
   });
 
+  final String id;
   final String name;
   final String phone;
   final String email;
@@ -21,6 +23,7 @@ class UserProfile {
   }
 
   UserProfile copyWith({
+    String? id,
     String? name,
     String? phone,
     String? email,
@@ -28,6 +31,7 @@ class UserProfile {
     String? avatarPath,
   }) {
     return UserProfile(
+      id: id ?? this.id,
       name: name ?? this.name,
       phone: phone ?? this.phone,
       email: email ?? this.email,
@@ -37,6 +41,7 @@ class UserProfile {
   }
 
   Map<String, Object?> toJson() => {
+    'id': id,
     'name': name,
     'phone': phone,
     'email': email,
@@ -46,6 +51,7 @@ class UserProfile {
 
   factory UserProfile.fromJson(Map<String, Object?> json) {
     return UserProfile(
+      id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
       email: json['email'] as String? ?? '',

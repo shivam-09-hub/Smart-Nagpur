@@ -344,8 +344,8 @@ CREATE TRIGGER trg_staff_profiles_integrity
 -- 6.5 Transactional RPC: assign_complaint
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.assign_complaint(
-  p_complaint_id uuid,
-  p_staff_id uuid,
+  p_complaint_id text,
+  p_staff_id text,
   p_priority text DEFAULT 'medium',
   p_instructions text DEFAULT ''
 )
@@ -355,6 +355,8 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 DECLARE
+  v_complaint_uuid uuid;
+  v_staff_uuid uuid;
   v_complaint record;
   v_staff record;
   v_prev_assignment_id uuid;
@@ -366,17 +368,29 @@ BEGIN
     RAISE EXCEPTION 'Access denied. Caller is not an active municipal administrator.';
   END IF;
 
-  -- 2. Verify complaint exists
-  SELECT * INTO v_complaint FROM public.complaints WHERE id = p_complaint_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Complaint with ID % does not exist.', p_complaint_id;
+  -- 2. Resolve Complaint UUID (from UUID or public_id like NAG-2026-000033)
+  IF p_complaint_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+    SELECT * INTO v_complaint FROM public.complaints WHERE id = p_complaint_id::uuid;
+  ELSE
+    SELECT * INTO v_complaint FROM public.complaints WHERE public_id = p_complaint_id;
   END IF;
 
-  -- 3. Verify staff exists & is active
-  SELECT * INTO v_staff FROM public.staff_profiles WHERE id = p_staff_id;
-  IF NOT FOUND THEN
+  IF v_complaint.id IS NULL THEN
+    RAISE EXCEPTION 'Complaint with ID % does not exist.', p_complaint_id;
+  END IF;
+  v_complaint_uuid := v_complaint.id;
+
+  -- 3. Resolve Staff UUID (from UUID or email or employee_id)
+  IF p_staff_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+    SELECT * INTO v_staff FROM public.staff_profiles WHERE id = p_staff_id::uuid;
+  ELSE
+    SELECT * INTO v_staff FROM public.staff_profiles WHERE email = lower(trim(p_staff_id)) OR employee_id = trim(p_staff_id);
+  END IF;
+
+  IF v_staff.id IS NULL THEN
     RAISE EXCEPTION 'Staff member with ID % does not exist.', p_staff_id;
   END IF;
+  v_staff_uuid := v_staff.id;
 
   IF NOT v_staff.is_active THEN
     RAISE EXCEPTION 'Cannot assign complaint to inactive staff member.';
@@ -407,11 +421,11 @@ BEGIN
   -- 7. Check existing active assignment
   SELECT id INTO v_prev_assignment_id
   FROM public.complaint_assignments
-  WHERE complaint_id = p_complaint_id AND status IN ('assigned', 'accepted', 'inProgress')
+  WHERE complaint_id = v_complaint_uuid AND status IN ('assigned', 'accepted', 'inProgress')
   ORDER BY created_at DESC
   LIMIT 1;
 
-  -- 7. Insert new assignment
+  -- 8. Insert new assignment
   INSERT INTO public.complaint_assignments (
     complaint_id,
     staff_id,
@@ -421,8 +435,8 @@ BEGIN
     instructions,
     assigned_at
   ) VALUES (
-    p_complaint_id,
-    p_staff_id,
+    v_complaint_uuid,
+    v_staff_uuid,
     auth.uid(),
     'assigned',
     p_priority,
@@ -430,7 +444,7 @@ BEGIN
     clock_timestamp()
   ) RETURNING id INTO v_new_assignment_id;
 
-  -- 8. If previous active assignment existed, mark it as reassigned
+  -- 9. If previous active assignment existed, mark it as reassigned
   IF v_prev_assignment_id IS NOT NULL THEN
     UPDATE public.complaint_assignments
     SET status = 'reassigned',
@@ -1699,8 +1713,8 @@ GRANT EXECUTE ON FUNCTION public.get_staff_role() TO authenticated;
 REVOKE ALL ON FUNCTION public.calculate_distance_meters(double precision, double precision, double precision, double precision) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.calculate_distance_meters(double precision, double precision, double precision, double precision) TO authenticated;
 
-REVOKE ALL ON FUNCTION public.assign_complaint(uuid, uuid, text, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.assign_complaint(uuid, uuid, text, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.assign_complaint(text, text, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.assign_complaint(text, text, text, text) TO authenticated;
 
 REVOKE ALL ON FUNCTION public.accept_complaint_assignment(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.accept_complaint_assignment(uuid) TO authenticated;
