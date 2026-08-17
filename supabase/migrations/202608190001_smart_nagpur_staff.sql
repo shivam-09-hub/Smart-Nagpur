@@ -1621,10 +1621,10 @@ BEGIN
     SELECT 
       c.id AS complaint_id,
       ca.id AS assignment_id,
-      coalesce(c.issue, c.title, 'Civic Grievance') AS issue,
+      c.issue AS issue,
       c.service_type,
       ca.priority,
-      coalesce(c.address, c.location_address, 'Nagpur') AS complaint_address,
+      c.location_address AS complaint_address,
       c.created_at AS complaint_created_at,
       sp.id AS staff_id,
       sp.name AS staff_name,
