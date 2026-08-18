@@ -3,8 +3,8 @@
 /// Keeping this copy outside widgets makes the screens straightforward to
 /// migrate to generated ARB localizations when Marathi translations land.
 abstract final class BootstrapCopy {
-  static const appName = 'Smart Nagpur';
-  static const appNameMarathi = 'स्मार्ट नागपूर';
+  static const appName = 'NGP Seva';
+  static const appNameMarathi = 'एनजीपी सेवा';
   static const cityServices = 'One city. Connected services.';
   static const skip = 'Skip';
   static const next = 'Next';

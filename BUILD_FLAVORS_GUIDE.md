@@ -6,11 +6,11 @@ This guide details the build configuration, product flavors, and exact commands 
 
 ## 1. Flavor & Application Matrix
 
-| Application | Flavor Name | Application ID (Package Name) | App Display Name | Entry Point |
-| :--- | :--- | :--- | :--- | :--- |
-| **Citizen App** | `citizen` | `com.smartnagpur.citizen` | Smart Nagpur | `lib/main.dart` |
-| **Admin App** | `admin` | `com.smartnagpur.admin` | Smart Nagpur Admin | `lib/admin_main.dart` |
-| **Staff App** | `staff` | `com.smartnagpur.staff` | Smart Nagpur Staff | `lib/staff_main.dart` |
+| Application | Flavor Name | Application ID (Package Name) | App Display Name | Target APK Name | Entry Point |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Citizen App** | `citizen` | `com.smartnagpur.citizen` | **NGP Seva** | `NGP_Seva.apk` | `lib/main.dart` |
+| **Admin App** | `admin` | `com.smartnagpur.admin` | **NMC Command** | `NMC_Command.apk` | `lib/admin_main.dart` |
+| **Staff App** | `staff` | `com.smartnagpur.staff` | **NMC FieldForce** | `NMC_FieldForce.apk` | `lib/staff_main.dart` |
 
 ---
 
@@ -19,26 +19,26 @@ This guide details the build configuration, product flavors, and exact commands 
 ### A. Production Release APKs
 
 ```bash
-# 1. Citizen Release APK
+# 1. Citizen Release APK (NGP Seva)
 flutter build apk --release --flavor citizen -t lib/main.dart --no-pub \
   --dart-define=SUPABASE_URL=https://hcpcycfvupjuklhcaxzg.supabase.co \
   --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y
 
-# 2. Admin Release APK
+# 2. Admin Release APK (NMC Command)
 flutter build apk --release --flavor admin -t lib/admin_main.dart --no-pub \
   --dart-define=SUPABASE_URL=https://hcpcycfvupjuklhcaxzg.supabase.co \
   --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y
 
-# 3. Staff Release APK
+# 3. Staff Release APK (NMC FieldForce)
 flutter build apk --release --flavor staff -t lib/staff_main.dart --no-pub \
   --dart-define=SUPABASE_URL=https://hcpcycfvupjuklhcaxzg.supabase.co \
   --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y
 ```
 
 #### Output Artifact Paths:
-- Citizen APK: `build/app/outputs/flutter-apk/app-citizen-release.apk`
-- Admin APK: `build/app/outputs/flutter-apk/app-admin-release.apk`
-- Staff APK: `build/app/outputs/flutter-apk/app-staff-release.apk`
+- Citizen APK: `build/app/outputs/flutter-apk/app-citizen-release.apk` (`APKs/NGP_Seva.apk`)
+- Admin APK: `build/app/outputs/flutter-apk/app-admin-release.apk` (`APKs/NMC_Command.apk`)
+- Staff APK: `build/app/outputs/flutter-apk/app-staff-release.apk` (`APKs/NMC_FieldForce.apk`)
 
 ---
 

@@ -1,0 +1,321 @@
+/**
+ * Smart Nagpur Admin Web — Dashboard & Specialized Views CSS (2026 SaaS)
+ * Compact operational metrics strip, executive summary, trend visualization,
+ * side-by-side evidence inspection HUD, and staff capacity meters.
+ */
+
+/* Executive Summary Section */
+.executive-summary {
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.executive-title-group h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.executive-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+}
+
+.executive-date {
+  color: #60A5FA;
+  font-weight: 500;
+}
+
+/* Compact 5-Column Metrics Strip */
+.metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.metric-block {
+  padding: 0.9rem 1.15rem;
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: background-color 0.12s ease;
+}
+
+.metric-block:last-child {
+  border-right: none;
+}
+
+.metric-block:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.metric-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.metric-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  font-feature-settings: "tnum";
+  margin-top: 0.2rem;
+}
+
+.metric-trend {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.2rem;
+}
+
+/* Dashboard Sections Grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.8fr 1.2fr;
+  gap: 1.15rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Capacity Strip (Staff Operations) */
+.capacity-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.capacity-item {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.capacity-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.capacity-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.capacity-val {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-feature-settings: "tnum";
+}
+
+/* Side-by-Side Evidence Review Layout */
+.evidence-workspace {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.evidence-panel {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.evidence-img-container {
+  width: 100%;
+  height: 280px;
+  background-color: #060910;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.evidence-img-container img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  cursor: zoom-in;
+  transition: transform 0.15s ease;
+}
+
+.evidence-img-container img:hover {
+  transform: scale(1.02);
+}
+
+/* Geo-Verification HUD */
+.geo-verification-hud {
+  margin-top: 0.75rem;
+  background-color: var(--bg-surface-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.85rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.geo-hud-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.geo-hud-label {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.geo-hud-val {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.geo-status-pass {
+  color: var(--success);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.geo-status-fail {
+  color: var(--danger);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Operations Workspace Layout (Complaint Details) */
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.25rem;
+}
+
+.workspace-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.workspace-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+/* Timeline */
+.timeline {
+  position: relative;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  bottom: 4px;
+  width: 1.5px;
+  background-color: var(--border-subtle);
+}
+
+.timeline-item {
+  position: relative;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -1.25rem;
+  top: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--bg-surface);
+  border: 2px solid var(--primary);
+}
+
+.timeline-dot.completed {
+  background-color: var(--success);
+  border-color: var(--success);
+}
+
+.timeline-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.timeline-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.timeline-msg {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.timeline-date {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* Workload Capacity Meter */
+.workload-meter {
+  height: 5px;
+  width: 100%;
+  background-color: var(--bg-input);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 0.4rem;
+}
+
+.workload-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}

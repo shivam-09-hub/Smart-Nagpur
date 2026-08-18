@@ -85,7 +85,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                         ),
                         const SizedBox(height: 20),
                         Text(
-                          'Smart Nagpur Admin',
+                          'NMC Command',
                           style: Theme.of(context).textTheme.headlineMedium
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,

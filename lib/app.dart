@@ -33,7 +33,7 @@ class SmartNagpurApp extends StatelessWidget {
         return MaterialApp(
           navigatorKey: navigatorKey,
           navigatorObservers: [_routeTracker],
-          title: 'Smart Nagpur',
+          title: 'NGP Seva',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light,
           locale: controller.locale,

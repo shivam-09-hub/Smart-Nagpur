@@ -33,7 +33,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        manifestPlaceholders["appName"] = "Smart Nagpur"
+        manifestPlaceholders["appName"] = "NGP Seva"
     }
 
     flavorDimensions += "app"
@@ -42,17 +42,17 @@ android {
         create("citizen") {
             dimension = "app"
             applicationId = "com.smartnagpur.citizen"
-            manifestPlaceholders["appName"] = "Smart Nagpur"
+            manifestPlaceholders["appName"] = "NGP Seva"
         }
         create("admin") {
             dimension = "app"
             applicationId = "com.smartnagpur.admin"
-            manifestPlaceholders["appName"] = "Smart Nagpur Admin"
+            manifestPlaceholders["appName"] = "NMC Command"
         }
         create("staff") {
             dimension = "app"
             applicationId = "com.smartnagpur.staff"
-            manifestPlaceholders["appName"] = "Smart Nagpur Staff"
+            manifestPlaceholders["appName"] = "NMC FieldForce"
         }
     }
 

@@ -1,0 +1,70 @@
+/**
+ * Smart Nagpur Admin Web — Responsive Breakpoints (2026 SaaS)
+ * Optimized for Desktop (1920x1080, 1440x900, 1366x768) and Tablet viewports.
+ */
+
+@media (max-width: 1280px) {
+  .metrics-strip {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .metrics-strip .metric-block:nth-child(3) {
+    border-right: none;
+  }
+  .metrics-strip .metric-block:nth-child(4),
+  .metrics-strip .metric-block:nth-child(5) {
+    border-top: 1px solid var(--border-subtle);
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-sidebar {
+    width: var(--sidebar-collapsed-width);
+  }
+  .sidebar-brand-text, .nav-section-title, .nav-label, .admin-details {
+    display: none !important;
+  }
+  .sidebar-header {
+    justify-content: center;
+    padding: 0;
+  }
+  .sidebar-toggle-btn {
+    display: none;
+  }
+  .nav-item {
+    justify-content: center;
+    padding: 0.6rem;
+  }
+  .sidebar-footer {
+    justify-content: center;
+    padding: 0.6rem 0;
+  }
+  .evidence-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .metrics-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+  .capacity-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+  .table-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .header-search {
+    width: 180px;
+  }
+}

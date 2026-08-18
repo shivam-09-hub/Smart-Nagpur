@@ -49,7 +49,7 @@ class _StaffAppState extends State<StaffApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Smart Nagpur Staff',
+      title: 'NMC FieldForce',
       theme: AppTheme.light,
       themeMode: ThemeMode.light,
       debugShowCheckedModeBanner: false,

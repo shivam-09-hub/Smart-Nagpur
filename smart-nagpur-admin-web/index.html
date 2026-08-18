@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NMC Command Center — Smart Nagpur Municipal Portal</title>
+  
+  <!-- Modern Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/responsive.css">
+
+  <!-- Supabase JS Client v2 via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Left Navigation Sidebar -->
+    <aside class="app-sidebar" id="sidebar-mount">
+      <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+        Loading Navigation...
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="app-main">
+      <!-- Top Command Bar -->
+      <header class="app-header" id="header-mount">
+        <div style="color: var(--text-muted); font-size: 0.85rem;">
+          Connecting Command Center...
+        </div>
+      </header>
+
+      <!-- Dynamic Page Container Mount -->
+      <div class="page-container" id="page-content-mount">
+        <div style="display: flex; justify-content: center; align-items: center; height: 60vh;">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast Alerts Container -->
+  <div class="toast-container"></div>
+
+  <!-- Main JavaScript Orchestrator -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

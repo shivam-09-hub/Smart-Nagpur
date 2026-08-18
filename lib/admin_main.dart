@@ -56,7 +56,7 @@ class _AdminAppState extends State<AdminApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Smart Nagpur Admin',
+      title: 'NMC Command',
       theme: AppTheme.light,
       themeMode: ThemeMode.light,
       home: ListenableBuilder(

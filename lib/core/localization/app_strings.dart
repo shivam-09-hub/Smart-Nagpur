@@ -78,7 +78,7 @@ class AppStrings {
 
   static const _translations = <String, Map<String, String>>{
     'en': {
-      'appName': 'Smart Nagpur',
+      'appName': 'NGP Seva',
       'appTagline': 'Your city. One simple place.',
       'demoMode': 'Demo mode',
       'home': 'Home',
@@ -130,7 +130,7 @@ class AppStrings {
       'marathi': 'Marathi',
     },
     'mr': {
-      'appName': 'स्मार्ट नागपूर',
+      'appName': 'एनजीपी सेवा',
       'appTagline': 'आपले शहर. एक सोपे ठिकाण.',
       'demoMode': 'डेमो मोड',
       'home': 'मुख्यपृष्ठ',
