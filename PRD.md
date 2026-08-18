@@ -8,7 +8,6 @@
 **Document Version:** 1.0.0  
 **Status:** Implemented & Verified (Production Ready Milestone)
 
-
 ---
 
 ## 1. Executive Summary & Vision
@@ -19,7 +18,7 @@
 1. **Empower Citizens:** Enable seamless reporting of civic grievances (potholes, garbage, water leaks, stray animals, faulty streetlights, encroachments) with photo evidence and GPS coordinates.
 2. **Streamline Street Vendor Operations:** Provide a structured digital onboarding and zone permit management system for street vendors, ensuring urban order and compliance with local municipal vendor bylaws.
 3. **Transparent Resolution Tracking:** Provide end-to-end milestone timelines for all citizen grievances and vendor applications.
-4. **Administrative Efficiency:** Offer municipal officers role-based access control (RBAC) to triage complaints, review vendor applications, manage user accounts, and broadcast critical city notifications.
+4. **Administrative Efficiency:** Offer municipal officers role-based access control (RBAC) to triage complaints, review vendor applications, manage user accounts, verify resolution evidence, and broadcast critical city notifications.
 5. **Robust & Secure Architecture:** Leverage Supabase for secure cloud authentication, owner-isolated PostgreSQL storage via Row-Level Security (RLS), transactional RPCs, and private object storage.
 
 ---
@@ -30,8 +29,8 @@
 | :--- | :--- | :--- |
 | **Citizens of Nagpur** | Wants quick, painless reporting of civic problems in their ward; needs proof and live tracking of municipal response; needs local language support (Marathi). | Home, 10 Civic Services, Complaint Wizard (GPS + Photos), My Requests (Timeline), Notifications, City News, Profile/Settings (Marathi/English). |
 | **Street Vendors & Hawkers** | Needs official permits for designated vending zones, certificate renewals, document verification, and operating schedule approvals without bureaucratic delays. | Vendor Hub, 4-Step Vendor Application Wizard, Document Upload Center, Zone Explorer, Application Status Tracker, License Renewal. |
-| **Municipal Review Officers & Admins** | Needs to review, verify, reject, or assign civic complaints; inspect vendor documents; assign field workers; broadcast alerts; manage suspicious user activity; provision field staff accounts. | Admin Login, Admin Dashboard (KPIs & Metrics), Complaint Triage Queue, Vendor Document Reviewer, Broadcast Composer, User Suspension Manager, Staff Provisioning. |
-| **Field Maintenance Staff** | Needs direct access to assigned field tasks, on-duty shift toggle, GPS distance verification, and before/after resolution evidence uploads. | Staff Login, Staff Dashboard, Duty Toggle, Task Dispatching, Evidence Camera, Profile. |
+| **Municipal Review Officers & Admins** | Needs to review, verify, reject, or assign civic complaints; inspect vendor documents; assign field workers; verify resolution evidence; broadcast alerts; manage suspicious user activity; provision field staff accounts. | Admin Login, Admin Dashboard (KPIs & Metrics), Complaint Triage Queue, Operations Verification Dashboard, Vendor Document Reviewer, Broadcast Composer, User Suspension Manager, Staff Provisioning. |
+| **Field Maintenance Staff** | Needs direct access to assigned field tasks, on-duty shift toggle, GPS distance verification, navigation, and before/after resolution evidence uploads. | Staff Login, Staff Dashboard, Duty Toggle, Task Dispatching, Turn-by-Turn Navigation, Evidence Camera, Profile. |
 
 ---
 
@@ -100,15 +99,15 @@ The platform structures all urban grievances into 10 distinct service domains:
   - `userManager`: Audit user accounts, suspend bad actors, reactivate accounts, and create staff profiles.
   - `reportViewer`: High-level metrics, daily/monthly resolution stats.
 - **Live Admin Dashboard:** Resolution rate KPI, vendor approval rate, pending review queues, and daily trend charts.
+- **Operations & Verification Dashboard:** Single-roundtrip server-side aggregation for verification queue and staff workloads.
 - **Complaint & Vendor Review Workflows:** Detailed inspection screens with full document viewing, photo review, location maps, status update modal, and official review scoring.
 - **Broadcast Composer:** Instant system-wide announcements by category (Emergency, Alert, Info, Event).
 
-### 3.9. Field Staff Application (`lib/staff_main.dart`)
+### 3.9. Field Staff Application (`com.smartnagpur.staff` / `lib/staff_main.dart`)
 - **Role Hierarchy:** Field Worker (`FIELD_WORKER`), Supervisor (`SUPERVISOR`), Department Officer (`OFFICER`).
-- **Secure Provisioning:** Created exclusively server-side via Supabase Edge Function (`admin-create-staff`).
+- **Secure Provisioning:** Created exclusively server-side via Supabase Edge Function (`admin-create-staff`) or native stored procedure (`admin_create_staff_account`).
 - **On-Duty Shift Management:** Dynamic duty toggle with real-time availability synchronization.
-- **Task Resolution Engine (In-Progress):** Direct queue of assigned grievances with location coordinates, distance validation via Haversine RPC, before/after evidence photos, and resolution milestone submission.
-
+- **Task Resolution Engine (Complete & Verified):** Direct queue of assigned grievances with location coordinates, 10-state GPS failure handling, turn-by-turn navigation launcher, before/after evidence photos, and resolution milestone submission.
 
 ---
 
@@ -117,7 +116,7 @@ The platform structures all urban grievances into 10 distinct service domains:
 | Domain | Requirement | Standard / Implementation |
 | :--- | :--- | :--- |
 | **Security & Privacy** | Zero secret keys in client bundle; Row-Level Security (RLS) on all tables; private bucket object paths (`<uid>/...`); SQL injection protection via parameterized RPCs. | Supabase Auth + RLS + Publishable key only. |
-| **Performance** | Sub-300ms route transitions; image compression before upload; lazy loading and pagination on large list views (50 items/batch). | Flutter ahead-of-time (AOT) compilation; memory-efficient list views. |
+| **Performance** | Sub-300ms route transitions; image compression before upload; lazy loading and pagination on large list views (50 items/batch); 500ms realtime debouncing. | Flutter ahead-of-time (AOT) compilation; memory-efficient list views. |
 | **Offline Resilience** | App-private JSON cache scoped to `cachedUserId` for viewing previously loaded requests during temporary network drops. | `LocalAppRepository` + `JsonFileStore`. |
 | **Accessibility & UX** | Minimum touch targets of 48dp; high-contrast typography; semantic labels for screen readers; responsive multi-screen layouts. | Flutter Material 3 + `AppSpacing.minTouchTarget`. |
 | **Reliability** | Atomic transactional rollback on upload/submission failure; zero unhandled async errors. | PostgREST RPCs + structured Dart try-catch blocks. |

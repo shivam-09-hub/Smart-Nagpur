@@ -1,12 +1,12 @@
 # Build Flavors & Production Release Guide — Smart Nagpur
 
-This guide details the build configuration, product flavors, and exact commands for generating production release APKs and App Bundles (`.aab`) for the **Citizen**, **Admin**, and **Staff** applications from the unified Smart Nagpur codebase.
+This guide details the build configuration, product flavors, and exact commands for generating production release APKs (Universal and Split-per-ABI) and App Bundles (`.aab`) for the **Citizen**, **Admin**, and **Staff** applications from the unified Smart Nagpur codebase.
 
 ---
 
 ## 1. Flavor & Application Matrix
 
-| Application | Flavor Name | Application ID (Package Name) | App Display Name | Target APK Name | Entry Point |
+| Application | Flavor Name | Application ID (Package Name) | App Display Name | Target Universal APK | Entry Point |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Citizen App** | `citizen` | `com.smartnagpur.citizen` | **NGP Seva** | `NGP_Seva.apk` | `lib/main.dart` |
 | **Admin App** | `admin` | `com.smartnagpur.admin` | **NMC Command** | `NMC_Command.apk` | `lib/admin_main.dart` |
@@ -16,33 +16,66 @@ This guide details the build configuration, product flavors, and exact commands 
 
 ## 2. Production Release Commands
 
-### A. Production Release APKs
+### A. Split-per-ABI Release APKs (Recommended for Sideloading & Minimized Download Size)
+
+Building with `--split-per-abi` creates architecture-optimized APKs (~19MB–25MB each) instead of the bloated fat binary (~60MB):
 
 ```bash
-# 1. Citizen Release APK (NGP Seva)
+# 1. Citizen Split APKs (NGP Seva)
+flutter build apk --release --flavor citizen -t lib/main.dart --split-per-abi --no-pub \
+  --dart-define=SUPABASE_URL=https://hcpcycfvupjuklhcaxzg.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y
+
+# 2. Admin Split APKs (NMC Command)
+flutter build apk --release --flavor admin -t lib/admin_main.dart --split-per-abi --no-pub \
+  --dart-define=SUPABASE_URL=https://hcpcycfvupjuklhcaxzg.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y
+
+# 3. Staff Split APKs (NMC FieldForce)
+flutter build apk --release --flavor staff -t lib/staff_main.dart --split-per-abi --no-pub \
+  --dart-define=SUPABASE_URL=https://hcpcycfvupjuklhcaxzg.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y
+```
+
+#### Split Output Artifact Paths:
+- **Build Output Directory:** `build/app/outputs/flutter-apk/`
+  - `app-arm64-v8a-<flavor>-release.apk` (Modern 64-bit Android phones)
+  - `app-armeabi-v7a-<flavor>-release.apk` (Legacy 32-bit Android devices)
+  - `app-x86_64-<flavor>-release.apk` (Android Emulators / Tablets / ChromeOS)
+- **Organized Workspace Directory:**
+  - Citizen: `APKs/Citizen/SmartNagpur_Citizen_[arm64-v8a|armeabi-v7a|x86_64].apk`
+  - Admin: `APKs/Admin/SmartNagpur_Admin_[arm64-v8a|armeabi-v7a|x86_64].apk`
+  - Staff: `APKs/Staff/SmartNagpur_Staff_[arm64-v8a|armeabi-v7a|x86_64].apk`
+
+---
+
+### B. Universal Fat Release APKs (Single Binary for All Devices)
+
+```bash
+# 1. Citizen Universal Release APK
 flutter build apk --release --flavor citizen -t lib/main.dart --no-pub \
   --dart-define=SUPABASE_URL=https://hcpcycfvupjuklhcaxzg.supabase.co \
   --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y
 
-# 2. Admin Release APK (NMC Command)
+# 2. Admin Universal Release APK
 flutter build apk --release --flavor admin -t lib/admin_main.dart --no-pub \
   --dart-define=SUPABASE_URL=https://hcpcycfvupjuklhcaxzg.supabase.co \
   --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y
 
-# 3. Staff Release APK (NMC FieldForce)
+# 3. Staff Universal Release APK
 flutter build apk --release --flavor staff -t lib/staff_main.dart --no-pub \
   --dart-define=SUPABASE_URL=https://hcpcycfvupjuklhcaxzg.supabase.co \
   --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y
 ```
 
-#### Output Artifact Paths:
+#### Universal Output Artifact Paths:
 - Citizen APK: `build/app/outputs/flutter-apk/app-citizen-release.apk` (`APKs/NGP_Seva.apk`)
 - Admin APK: `build/app/outputs/flutter-apk/app-admin-release.apk` (`APKs/NMC_Command.apk`)
 - Staff APK: `build/app/outputs/flutter-apk/app-staff-release.apk` (`APKs/NMC_FieldForce.apk`)
 
 ---
 
-### B. Google Play Store Production App Bundles (`.aab`)
+### C. Google Play Store Production App Bundles (`.aab`)
 
 ```bash
 # 1. Citizen App Bundle

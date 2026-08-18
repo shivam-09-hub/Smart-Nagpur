@@ -1,310 +1,86 @@
-# Smart Nagpur Admin Application
+# Smart Nagpur Admin Application (NMC Command)
 
-This is the admin panel for the Smart Nagpur municipal services application. The admin app allows authorized administrators to review and manage citizen complaints, vendor applications, send notifications, and view analytics.
+This is the administrative command center for the Smart Nagpur municipal platform (`flavor: admin` / `com.smartnagpur.admin`). The admin app enables authorized municipal officers to triage complaints, dispatch field technicians, verify on-site resolution evidence, review street vendor applications, manage user accounts, and broadcast city notifications.
 
-## Features
+---
 
-### Dashboard
-- Real-time statistics and metrics
-- Complaint resolution rate
-- Vendor application approval rate
-- Quick action buttons for all major functions
+## 1. Key Features
+
+### Executive Dashboard & Live KPIs
+- Real-time resolution rate and vendor permit approval metrics.
+- Active complaint volume by municipal service category.
+- Quick action cards linking to triage queues, operations, and broadcasts.
 
 ### Complaint Management & Field Staff Dispatching
-- View all pending complaints with filters (department, priority, status)
-- Detailed complaint review with photos and location
-- Assign complaints to active on-duty field workers with department validation
-- Reassign complaints when needed
-- Update complaint status and add timeline entries
-- Submit detailed reviews with ratings
-- Categorized view by service type
+- View all pending complaints with filters (department, priority, status).
+- Detailed complaint review with GPS coordinates, address, and citizen photos.
+- Assign grievances to active on-duty field workers with department validation.
+- Live reassignment flow and supervisor directive notes.
+- Categorized view across all 10 civic service domains.
 
 ### Field Operations & Verification Dashboard
-- Single-roundtrip server-side aggregation (`get_admin_operations_dashboard`)
-- Live Verification Queue tab displaying completed complaints awaiting inspection
-- Evidence inspection gallery with Before/After photos and inspection PDF download
-- GPS proximity and accuracy badge verification
-- Staff Workload tab tracking active technicians, on-duty status, and assigned tasks
-- Complaint & Assignment status breakdown chips with instant filter resets
-- 1-tap Approve and Rework request actions
+- Single-roundtrip server-side aggregation (`get_admin_operations_dashboard`).
+- Live Verification Queue tab displaying completed complaints awaiting inspection.
+- Evidence inspection gallery with Before/After photos and inspection PDF download.
+- GPS proximity ($\le 100\text{m}$) and accuracy ($\le 50\text{m}$) badge verification.
+- Staff Workload tab tracking active technicians, on-duty status, and assigned tasks.
+- Complaint & Assignment status breakdown chips with instant filter resets.
+- 1-tap **Approve Resolution** and **Request Rework** actions.
 
 ### Vendor Application Management
-- Review pending vendor applications
-- View applicant details and documents
-- Approve/reject applications with comments
-- Track application status through timeline
+- Review pending vendor applications and business classifications.
+- View applicant details, vending zone selections, and uploaded KYC/FSSAI documents.
+- Approve/reject applications with official administrative remarks.
+- Track application status through the milestone timeline.
 
+### Notification Management & Broadcasts
+- Send broadcast notifications to all registered citizens.
+- Send targeted notifications to specific users.
+- Notification history, category-based categorization (Emergency, Alert, Info, Event).
 
-### Notification Management
-- Send broadcast notifications to all users
-- Send targeted notifications to specific users
-- Notification history and tracking
-- Category-based notification organization
+### User Management & Staff Provisioning
+- View registered citizens and audit account status.
+- Suspend user accounts with mandatory reason logging; 1-tap account reactivation.
+- Native staff account provisioning with auto-normalized auth tokens.
 
-### User Management
-- View all registered users
-- Suspend users with suspension reason
-- View user profiles and contact information
-- Track user account status
+---
 
-### Analytics & Reports
-- Daily statistics overview
-- Monthly reports
-- Complaint distribution by service type
-- Application status breakdown
-- User growth tracking
+## 2. Admin Roles & Permissions
 
-## Admin Roles & Permissions
+- **Super Admin (`superAdmin`):** Full system access, configuration, and staff provisioning.
+- **Complaint Reviewer (`complaintReviewer`):** Review, assign, and verify complaints.
+- **Vendor Reviewer (`vendorReviewer`):** Review and approve/reject vendor permits.
+- **Report Viewer (`reportViewer`):** View analytics, metrics, and summary reports.
+- **Notification Manager (`notificationManager`):** Send broadcasts and announcements.
+- **User Manager (`userManager`):** Manage user accounts, suspensions, and staff accounts.
 
-- **Super Admin**: Full system access and control
-- **Complaint Reviewer**: Review and manage complaints only
-- **Vendor Reviewer**: Review and approve vendor applications only
-- **Report Viewer**: View analytics and reports only
-- **Notification Manager**: Send and manage notifications
-- **User Manager**: Manage user accounts and suspensions
+---
 
-## Building the Admin APK
+## 3. Building the Admin APK
 
-### Option 1: Using Flavors (Recommended)
-
-To build both citizen and admin APKs with separate app IDs:
-
+### A. Split-per-ABI Release APK (Recommended)
 ```bash
-# Build citizen APK
-flutter build apk --flavor citizen -t lib/main.dart
-
-# Build admin APK
-flutter build apk --flavor admin -t lib/admin_main.dart
+flutter build apk --release --flavor admin -t lib/admin_main.dart --split-per-abi --no-pub \
+  --dart-define=SUPABASE_URL=https://hcpcycfvupjuklhcaxzg.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y
 ```
+**Outputs:**
+- `APKs/Admin/SmartNagpur_Admin_arm64-v8a.apk` (~22.6 MB)
+- `APKs/Admin/SmartNagpur_Admin_armeabi-v7a.apk` (~20.4 MB)
+- `APKs/Admin/SmartNagpur_Admin_x86_64.apk` (~24.0 MB)
 
-Output files:
-- Citizen: `build/app/outputs/flutter-apk/app-citizen-release.apk`
-- Admin: `build/app/outputs/flutter-apk/app-admin-release.apk`
-
-### Option 2: Direct Build
-
+### B. Universal Fat Release APK
 ```bash
-# Build admin debug APK
-flutter run -t lib/admin_main.dart
-
-# Build admin release APK
-flutter build apk --release -t lib/admin_main.dart --dart-define=SUPABASE_URL=<your-url> --dart-define=SUPABASE_PUBLISHABLE_KEY=<your-key>
+flutter build apk --release --flavor admin -t lib/admin_main.dart --no-pub \
+  --dart-define=SUPABASE_URL=https://hcpcycfvupjuklhcaxzg.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y
 ```
+**Output:** `APKs/NMC_Command.apk` (`build/app/outputs/flutter-apk/app-admin-release.apk`) (~57.3 MB)
 
-## Configuration
+---
 
-### Environment Variables
+## 4. Database Setup & Security
 
-Build the admin APK with custom Supabase configuration:
-
-```bash
-flutter build apk --release \
-  --dart-define=SUPABASE_URL=https://your-project.supabase.co \
-  --dart-define=SUPABASE_PUBLISHABLE_KEY=your-publishable-key \
-  -t lib/admin_main.dart
-```
-
-### Android Manifest Changes
-
-For the admin app flavor, update `android/app/build.gradle`:
-
-```gradle
-flavorDimensions "app"
-
-productFlavors {
-    citizen {
-        dimension "app"
-        applicationId "com.smartnagpur.citizen"
-    }
-    admin {
-        dimension "app"
-        applicationId "com.smartnagpur.admin"
-    }
-}
-```
-
-## Database Setup for Admin
-
-Before using the admin app, run the admin migration in Supabase:
-
-1. Open Supabase Dashboard → SQL Editor
-2. Paste content from `supabase/migrations/202608180001_smart_nagpur_admin.sql`
-3. Click "Run"
-4. Verify with: `SELECT 'Admin tables created successfully';`
-
-## Creating Admin Users
-
-### Via Supabase Dashboard:
-
-1. Go to Authentication → Users
-2. Create a new user with admin email
-3. In SQL Editor, run:
-
-```sql
-INSERT INTO admin_profiles (id, name, email, phone, role, is_active)
-SELECT id, 'Admin Name', email, '9876543210', 'superAdmin', true
-FROM auth.users
-WHERE email = 'admin@smartnagpur.com'
-ON CONFLICT (email) DO NOTHING;
-```
-
-### Via CLI:
-
-```bash
-supabase auth admin create-user --email admin@smartnagpur.com --password SecurePassword123
-```
-
-Then insert the admin profile record.
-
-## Login Credentials
-
-- **Email**: Create via Supabase Authentication
-- **Password**: Set during user creation
-- **Role**: Assigned in admin_profiles table
-
-## API Endpoints
-
-The admin app uses the following RPC functions:
-
-- `get_admin_stats()` - Get dashboard statistics
-- `get_complaint_stats()` - Get complaint metrics
-- `get_vendor_stats()` - Get vendor application metrics
-- `get_user_stats()` - Get user statistics
-- `get_notification_stats()` - Get notification counts
-- `get_complaints_by_service()` - Distribution by service type
-- `get_complaints_by_status()` - Distribution by status
-- `get_applications_by_status()` - Vendor apps by status
-- `get_daily_stats(days)` - Daily statistics for N days
-- `get_monthly_report(month, year)` - Monthly report
-- `suspend_user(user_id, reason)` - Suspend a user account
-- `reactivate_user(user_id)` - Reactivate a suspended user
-- `send_broadcast_notification(title, body, category)` - Send to all users
-- `add_complaint_timeline(complaint_id, entry)` - Add timeline entry
-- `add_application_timeline(application_id, entry)` - Add timeline entry
-
-## Architecture
-
-```
-lib/
-├── admin_main.dart              # Admin app entry point
-├── domain/models/
-│   ├── admin_stats.dart         # Dashboard statistics
-│   ├── admin_profile.dart       # Admin user model
-│   └── admin_review.dart        # Review and assessment model
-├── data/
-│   ├── gateways/
-│   │   ├── admin_auth_gateway.dart
-│   │   └── admin_data_gateway.dart
-│   └── adapters/
-│       ├── supabase_admin_auth_gateway.dart
-│       └── supabase_admin_data_gateway.dart
-├── state/
-│   └── admin_controller.dart    # State management
-└── features/admin/presentation/
-    ├── admin_login_screen.dart
-    ├── admin_dashboard_screen.dart
-    ├── admin_complaints_screen.dart
-    ├── admin_complaint_detail_screen.dart
-    ├── admin_vendors_screen.dart
-    ├── admin_notifications_screen.dart
-    └── admin_users_screen.dart
-```
-
-## Database Schema
-
-### Admin Tables
-
-- `admin_profiles` - Admin user accounts with roles and permissions
-- `admin_notifications` - System-wide admin notifications
-- `admin_reviews` - Reviews and assessments for complaints/applications
-- `user_suspensions` - Track user account suspensions
-
-### Related Tables (Extended)
-
-- `complaints` - Citizen complaint records
-- `vendor_applications` - Vendor registration applications
-- `notifications` - User notifications
-- `profiles` - User profiles
-
-## Testing
-
-```bash
-# Run tests
-flutter test
-
-# Test with admin main
-flutter test -t lib/admin_main.dart
-```
-
-## Troubleshooting
-
-### Login Issues
-- Verify admin profile exists in database
-- Check that `is_active` is set to true
-- Ensure email and password are correct
-- Check admin_profiles RLS policies
-
-### Data Not Loading
-- Verify Supabase connection
-- Check RLS policies on admin tables
-- Ensure admin has appropriate role permissions
-- Check browser console for errors (if using web)
-
-### Permission Denied Errors
-- Verify admin role matches required permissions
-- Check RLS policies for the specific table
-- Ensure admin_profiles row exists with correct role
-
-## Deployment
-
-### Building for Release
-
-```bash
-# Build admin release APK
-flutter build apk --release \
-  --target lib/admin_main.dart \
-  --dart-define=SUPABASE_URL=https://your-project.supabase.co \
-  --dart-define=SUPABASE_PUBLISHABLE_KEY=your-key
-
-# Build admin app bundle (for Play Store)
-flutter build appbundle --release \
-  --target lib/admin_main.dart \
-  --dart-define=SUPABASE_URL=https://your-project.supabase.co \
-  --dart-define=SUPABASE_PUBLISHABLE_KEY=your-key
-```
-
-### Play Store Submission
-
-1. Create separate app listing for admin app
-2. Use package name: `com.smartnagpur.admin`
-3. Set appropriate access restrictions to verified admins only
-4. Add release notes explaining admin functionality
-
-## Security Considerations
-
-- Admin credentials are never cached locally
-- All operations require valid Supabase session
-- Row-Level Security (RLS) enforces all data access restrictions
-- Service-role key is never exposed to the app
-- Admin operations are logged and auditable
-- Passwords are enforced via Supabase Auth
-
-## Performance Optimizations
-
-- Pagination on large lists (50 items per page)
-- Lazy loading of complaint photos and documents
-- Caching of admin stats with refresh capability
-- Efficient queries using Supabase indexes
-- Background sync for user suspensions
-
-## Support
-
-For issues or feature requests:
-1. Check the troubleshooting section
-2. Review Supabase logs
-3. Check RLS policies and migrations
-4. Contact the development team
-
-## License
-
-This admin application is part of the Smart Nagpur project and follows the same license terms.
+1. Ensure the admin migration has been applied: `supabase/migrations/202608180001_smart_nagpur_admin.sql`
+2. Run `supabase/migrations/202608190001_smart_nagpur_staff.sql` for assignment & operations dashboard RPCs.
+3. Ensure redirect URL is active: `com.smartnagpur.admin://login-callback/`

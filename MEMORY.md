@@ -1,7 +1,7 @@
 # Project Memory & Context Bank — Smart Nagpur
 
-**Last Updated:** 2026-08-17  
-**Project Status:** Active Development / Dual Flavor Ready (Citizen & Admin)  
+**Last Updated:** 2026-08-18  
+**Project Status:** Active Development / Tri-Flavor Ready (Citizen, Admin & Staff)  
 **Primary Language/Framework:** Flutter (Dart SDK `^3.11.5`)  
 **Backend:** Supabase (PostgreSQL 15+, Auth, Storage, RLS, RPCs)
 
@@ -13,25 +13,26 @@ This document allows developers and AI assistants to instantly restore complete 
 
 ### Core Stack & Architecture
 - **Framework:** Flutter with Dart 3.x strict null-safety and `flutter_lints: ^6.0.0`.
-- **State Management:** Flutter's built-in `ChangeNotifier` and `ListenableBuilder` (`AppController` for Citizen app, `AdminController` for Admin app). No third-party state managers (Bloc/Riverpod).
+- **State Management:** Flutter's built-in `ChangeNotifier` and `ListenableBuilder` (`AppController` for Citizen app, `AdminController` for Admin app, `StaffController` for Field Staff app). No third-party state managers (Bloc/Riverpod).
 - **Backend:** Supabase project `hcpcycfvupjuklhcaxzg.supabase.co`. Client uses publishable key only (`sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y`).
-- **Storage Buckets:** Private buckets `complaint-photos` and `vendor-documents` with RLS policies restricting access to owner (`<auth.uid()>/...`) and authorized admins.
-- **Deep Links:** `com.smartnagpur.citizen://login-callback/` and `com.smartnagpur.admin://login-callback/`.
+- **Storage Buckets:** Private buckets `complaint-photos`, `vendor-documents`, and `complaint-evidence` with RLS policies restricting access to owner (`<auth.uid()>/...`) and authorized admins/staff.
+- **Deep Links:** `com.smartnagpur.citizen://login-callback/`, `com.smartnagpur.admin://login-callback/`, and `com.smartnagpur.staff://login-callback/`.
 - **Flavors:**
-  1. `citizen`: `com.smartnagpur.citizen` (Entry: `lib/main.dart`)
-  2. `admin`: `com.smartnagpur.admin` (Entry: `lib/admin_main.dart`)
+  1. `citizen`: `com.smartnagpur.citizen` (Entry: `lib/main.dart` -> Display: "NGP Seva")
+  2. `admin`: `com.smartnagpur.admin` (Entry: `lib/admin_main.dart` -> Display: "NMC Command")
+  3. `staff`: `com.smartnagpur.staff` (Entry: `lib/staff_main.dart` -> Display: "NMC FieldForce")
 
 ---
 
 ## 2. Key Architectural Decisions & Invariants
 
 1. **Gateway Abstraction:**
-   - All backend calls go through abstract gateway interfaces (`AuthGateway`, `RemoteDataGateway`, `AdminAuthGateway`, `AdminDataGateway`).
+   - All backend calls go through abstract gateway interfaces (`AuthGateway`, `RemoteDataGateway`, `AdminAuthGateway`, `AdminDataGateway`, `StaffAuthGateway`, `StaffDataGateway`).
    - The UI and domain models never import or reference `supabase_flutter` directly. This enables 100% deterministic unit/widget testing without cloud dependencies.
 2. **Security & RLS Invariants:**
    - Secret keys, service-role keys, and database passwords are **NEVER** embedded in the mobile client.
-   - All database updates and milestone additions are handled via PostgreSQL transactional RPCs (`submit_complaint`, `submit_vendor_application`, `suspend_user`, etc.).
-   - Row-Level Security (RLS) restricts all citizen operations to `auth.uid() = user_id`.
+   - All database updates and milestone additions are handled via PostgreSQL transactional RPCs (`submit_complaint`, `submit_vendor_application`, `suspend_user`, `assign_complaint`, `record_complaint_evidence`, etc.).
+   - Row-Level Security (RLS) restricts all citizen operations to `auth.uid() = user_id` and staff operations to assigned complaints.
 3. **Offline Caching Policy:**
    - Local storage (`LocalAppRepository` + `JsonFileStore`) caches onboarding preferences, locale, and user-ID-scoped reads.
    - Cached reads provide temporary offline fallback; offline write queuing is intentionally prohibited (submissions require live connection).
@@ -80,20 +81,20 @@ This document allows developers and AI assistants to instantly restore complete 
 - Created private Storage bucket `complaint-evidence` with RLS policies restricting upload to active staff and view access to authorized staff, admins, and complaint owners.
 - Added contract tests in `supabase/tests/202608190001_smart_nagpur_staff_test.sql` validating all 16 security and schema constraints.
 
-### Staff APK Foundation & Authentication (Step 5)
+### Staff APK Foundation & Authentication
 - Created dedicated Staff entry point `lib/staff_main.dart` with `StaffApp` shell, `StaffAuthGateway`, `StaffDataGateway`, `SupabaseStaffAuthGateway`, `SupabaseStaffDataGateway`, and `StaffController`.
 - Implemented Staff login flow validating standard Supabase Auth with `staff_profiles` active status check and inactive account rejection.
 - Created `StaffLoginScreen`, `StaffDashboardScreen` (with live duty toggle and profile info), `StaffTasksScreen` placeholder, `StaffProfileScreen`, and `StaffShell` 3-tab navigation.
 - Added 11 automated unit tests in `test/staff_controller_test.dart` (46 total passing tests).
 
-### Admin Complaint Assignment System (Step 6)
+### Admin Complaint Assignment System
 - Implemented transactional PostgreSQL RPC `assign_complaint` in `supabase/migrations/202608190001_smart_nagpur_staff.sql` with admin authentication, active staff validation, priority/instruction checking, atomicity, and timeline logging.
 - Created domain model `ComplaintAssignment` with `AssignmentStatus` and `AssignmentPriority` enums.
 - Added assignment methods to `AdminDataGateway`, `SupabaseAdminDataGateway`, and `AdminController`.
 - Integrated Field Staff Assignment section into `AdminComplaintDetailScreen` with department pre-filtering, active staff dropdown, priority selector, instructions field, live assignment card, and reassignment flow.
 - Added 8 automated unit tests in `test/complaint_assignment_test.dart` (54 total passing tests).
 
-### Staff Task Consumption & Workflow (Step 7)
+### Staff Task Consumption & Workflow
 - Implemented transactional PostgreSQL RPCs `accept_complaint_assignment`, `start_complaint_assignment`, `complete_complaint_assignment` enforcing caller identity, active staff profile, previous valid state (`assigned` -> `accepted` -> `inProgress` -> `completed`), timeline recording, and complaint state synchronization.
 - Added task retrieval, state transition methods, and realtime task subscription in `StaffDataGateway`, `SupabaseStaffDataGateway`, and `StaffController`.
 - Built `StaffTasksScreen` with priority sorting (`urgent` -> `high` -> `medium` -> `low`), status filtering chips, and realtime task list updates.
@@ -101,7 +102,7 @@ This document allows developers and AI assistants to instantly restore complete 
 - Updated `StaffDashboardScreen` with live task workload overview metrics (Pending, Accepted, In Progress, Completed).
 - Added 13 automated unit tests in `test/staff_task_workflow_test.dart` (68 total passing tests).
 
-### Field Work Completion & Admin Verification Foundation (Step 8A)
+### Field Work Completion & Admin Verification Foundation
 - Decoupled field staff task completion from citizen complaint resolution: staff completion transitions assignment to `completed` and sets complaint to `underReview` ("Work Submitted for Verification").
 - Added transactional PostgreSQL RPCs `approve_complaint_assignment` and `request_rework_complaint_assignment` verifying Admin/Supervisor credentials, prohibiting technician self-approval, creating timeline audit entries, and updating complaint status to `resolved` on approval or `inProgress` on rework.
 - Updated `AssignmentStatus` enum with `reworkRequired` and `approved`.
@@ -109,7 +110,7 @@ This document allows developers and AI assistants to instantly restore complete 
 - Updated `StaffTaskDetailScreen` and `StaffTasksScreen` with "Work Submitted for Verification", Rework Notice, and "Start Rework" actions.
 - Added automated contract tests in `supabase/tests/202608190001_smart_nagpur_staff_test.sql` and Flutter unit tests (73 passing tests total).
 
-### GPS Location Verification & Field Evidence Foundation (Step 8B)
+### GPS Location Verification & Field Evidence Foundation
 - Implemented real-device GPS proximity verification:
   - `LocationService.verifyStaffLocation` checks GPS service status, runtime permissions, accuracy threshold (≤50m), and Haversine distance (≤100m) against target complaint coordinates.
   - Added 1-tap Google Maps external turn-by-turn navigation via `LocationService.launchNavigation`.
@@ -123,7 +124,7 @@ This document allows developers and AI assistants to instantly restore complete 
   - `AdminComplaintDetailScreen`: Added Field Evidence section rendering on-site photos, geotags, accuracy, distance metrics, inspection PDF links, and signed URLs.
 - Expanded test suite to 86 passing tests with zero analyzer issues.
 
-### Production Security & Evidence Hardening (Step 8C)
+### Production Security & Evidence Hardening
 - **Storage Security Hardening:**
   - Private `complaint-evidence` bucket with MIME restriction (`image/jpeg`, `image/png`, `image/webp`, `application/pdf`) and 10MB limit.
   - `storage.objects` RLS prevents path traversal (`..`, `//`, `\`), enforces `<staff_id>/<complaint_id>/<assignment_id>/<uuid>.<ext>` ownership, and validates assignment working state (`accepted`, `inProgress`, `reworkRequired`).
@@ -137,7 +138,8 @@ This document allows developers and AI assistants to instantly restore complete 
 - **Client-Side & Gateway Defensive Validation:**
   - Generated normalized UUID filenames (`<uuid>.<ext>`) to prevent file path manipulation.
   - Enforced file size checks (1 byte to 10MB) and extension/MIME compatibility before storage upload.
-### Field Navigation & Real-World Staff UX (Step 9)
+
+### Field Navigation & Real-World Staff UX
 - **Enhanced LocationService Engine:**
   - Expanded `LocationVerificationResult` to 10 distinct states: `verified`, `outsideRadius`, `poorAccuracy`, `permissionDenied`, `permissionDeniedForever`, `serviceDisabled`, `timeout`, `mockDetected`, `staleLocation`, `error`.
   - Added robust detection for mock/fake GPS coordinates (`isMocked`), stale locations (>3 minutes old), impossible coordinates (out of range/0,0), and configurable timeouts (15s).
@@ -150,7 +152,7 @@ This document allows developers and AI assistants to instantly restore complete 
   - Created `test/staff_location_navigation_test.dart` covering all 10 location states, mock GPS detection, timeout handling, coordinate range validation, and widget rendering.
   - Full suite expanded to 103 passing tests with 0 analyzer issues.
 
-### Admin Operations & Verification Dashboard (Step 10)
+### Admin Operations & Verification Dashboard
 - Created PostgreSQL RPC `get_admin_operations_dashboard(p_department, p_priority, p_status, p_staff_id, p_from_date, p_to_date)` in `supabase/migrations/202608190001_smart_nagpur_staff.sql` with admin/supervisor authorization, supervisor department isolation, single-roundtrip aggregation (complaint status breakdown, assignment status breakdown, staff workload summary, individual staff workloads, and verification queue with lateral evidence summaries).
 - Added performance indexes: `idx_complaint_assignments_completed_priority` and `idx_complaints_status_created`.
 - Created domain models in `lib/domain/models/admin_operations.dart`: `VerificationQueueItem`, `StaffWorkloadItem`, `StaffWorkloadSummary`, `AdminOperationsFilter`, and `AdminOperationsDashboard`.
@@ -166,7 +168,7 @@ This document allows developers and AI assistants to instantly restore complete 
 - Added Section 11 SQL contract tests in `supabase/tests/202608190001_smart_nagpur_staff_test.sql`.
 - Added test suite `test/admin_operations_test.dart` (8 tests). Total test suite reached 111/111 passing tests with 0 analyzer issues.
 
-### Full Production Security & RLS Audit (Step 11)
+### Full Production Security & RLS Audit
 - **Threat Modeling:** Evaluated 6 distinct actor profiles (Citizen, Field Worker, Supervisor, Admin, Unauthenticated Attacker, Compromised Client).
 - **Vulnerability Remediation:**
   - *VULN-01 (High):* Added `is_active_admin()` guards across all 14 admin analytics and data retrieval RPCs (`get_complaint_stats`, `get_admin_stats`, `get_admin_pending_complaints`, `get_admin_complaint_details`, `get_admin_vendor_applications`, etc.) to prevent unauthorized citizen data leakage and IDOR.
@@ -176,7 +178,7 @@ This document allows developers and AI assistants to instantly restore complete 
   - *VULN-05 (Low):* Added `.env`, `.env.*`, `*.env` to `.gitignore`.
 - **Automated Security Regression Tests:** Added Section 12 SQL contract tests verifying non-admin RPC rejection and staff privilege escalation rejection.
 
-### Production Performance & Resilience (Step 12)
+### Production Performance & Resilience
 - **N+1 Elimination & Parallel URL Hydration:**
   - Parallelized 4 stats RPCs in `SupabaseAdminDataGateway.getAdminStats` with `Future.wait`, reducing latency by ~75%.
   - Parallelized signed URL hydration for photos and documents in `getPendingComplaints`, `getPendingApplications`, and `getComplaintEvidence`.
@@ -196,21 +198,17 @@ This document allows developers and AI assistants to instantly restore complete 
   - Created `test/performance_resilience_test.dart` (8 new tests).
   - Total test suite expanded to **119/119 passing tests** with **0 analyzer issues**.
 
-### Production Release Preparation (Step 13)
+### Production Release Preparation
 - **Application ID & Flavor Isolation:**
-  - Citizen (`com.smartnagpur.citizen`, `lib/main.dart`, "Smart Nagpur")
-  - Admin (`com.smartnagpur.admin`, `lib/admin_main.dart`, "Smart Nagpur Admin")
-  - Staff (`com.smartnagpur.staff`, `lib/staff_main.dart`, "Smart Nagpur Staff")
+  - Citizen (`com.smartnagpur.citizen`, `lib/main.dart`, "NGP Seva")
+  - Admin (`com.smartnagpur.admin`, `lib/admin_main.dart`, "NMC Command")
+  - Staff (`com.smartnagpur.staff`, `lib/staff_main.dart`, "NMC FieldForce")
 - **Signing & ProGuard/R8:**
   - Configured `android/app/build.gradle.kts` with dynamic `key.properties` loading and fallback to debug keystore for development/CI.
   - Created `android/app/proguard-rules.pro` protecting Flutter engine, plugins, and reflection signatures.
 - **Manifest & Deep Linking:**
   - Updated `android/app/src/main/AndroidManifest.xml` with deep-link intent filters for all 3 applications (`com.smartnagpur.citizen`, `com.smartnagpur.admin`, `com.smartnagpur.staff`).
   - Verified 4 necessary permissions (`INTERNET`, `CAMERA`, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`); 0 unnecessary or invasive permissions.
-- **Release Build Verification:**
-  - Successfully compiled `app-citizen-release.apk` (61.6 MB), `app-admin-release.apk` (57.0 MB), and `app-staff-release.apk` (54.5 MB).
-  - `flutter analyze` -> 0 issues.
-  - `flutter test` -> 119/119 passing tests.
 
 ### Live Cloud Interconnection & Multi-Role Hardening (2026-08-18)
 - **Universal Local Timezone Conversion:** Updated all domain model deserializers (`ComplaintRecord`, `RequestTimelineEntry`, `ComplaintAssignment`, `ComplaintEvidence`, `VendorApplication`, `AppNotification`, `AdminProfile`, `StaffProfile`, `NewsItem`) and presentation screens to format `.toLocal()`, guaranteeing accurate device-local time (IST) across Citizen, Staff, and Admin apps.
@@ -218,6 +216,14 @@ This document allows developers and AI assistants to instantly restore complete 
   - Removed generated column `confirmed_at` conflict in `admin_create_staff_account`.
   - Normalized all token string columns (`confirmation_token`, `recovery_token`, `email_change_token_new`, `email_change`, `phone_change`, etc.) to empty string defaults (`''`) to prevent GoTrue `db.Scan()` null pointer exceptions (`Database error querying schema`).
 - **Comprehensive Live Interconnection Audit:** Executed full end-to-end live testing across all 3 roles: Citizen lodges complaint $\to$ Admin dispatches $\to$ Staff receives & uploads photo proof $\to$ Admin approves $\to$ Citizen receives real-time resolution update.
+
+### Split-per-ABI Clean Rebuilds & Distribution (2026-08-18)
+- Executed `flutter clean` and cache refresh.
+- Built separate architecture-split APKs (`--split-per-abi`) for all 3 flavors:
+  - **Citizen (NGP Seva):** `arm64-v8a` (24.0 MB), `armeabi-v7a` (21.9 MB), `x86_64` (25.4 MB)
+  - **Admin (NMC Command):** `arm64-v8a` (22.6 MB), `armeabi-v7a` (20.4 MB), `x86_64` (24.0 MB)
+  - **Staff (NMC FieldForce):** `arm64-v8a` (21.7 MB), `armeabi-v7a` (19.4 MB), `x86_64` (23.1 MB)
+- Organized organized binaries into `APKs/Citizen`, `APKs/Admin`, `APKs/Staff`.
 
 ---
 
@@ -236,6 +242,13 @@ d:\SmartNagpur\
 ├── STAFF_README.md                    # Field Staff application specific guide
 ├── BUILD_FLAVORS_GUIDE.md             # Guide for building citizen, admin, and staff APKs
 ├── pubspec.yaml                       # Flutter dependencies and assets
+├── APKs/                              # Distribution APKs (Universal and Split-per-ABI)
+│   ├── NGP_Seva.apk                   # Universal Citizen release APK
+│   ├── NMC_Command.apk                # Universal Admin release APK
+│   ├── NMC_FieldForce.apk             # Universal Staff release APK
+│   ├── Citizen/                       # Citizen split APKs (arm64-v8a, armeabi-v7a, x86_64)
+│   ├── Admin/                         # Admin split APKs (arm64-v8a, armeabi-v7a, x86_64)
+│   └── Staff/                         # Staff split APKs (arm64-v8a, armeabi-v7a, x86_64)
 ├── lib/
 │   ├── main.dart                      # Citizen App Entry Point (flavor: citizen)
 │   ├── admin_main.dart                # Admin App Entry Point (flavor: admin)
@@ -261,4 +274,4 @@ d:\SmartNagpur\
 1. **Database & Storage:** Fully configured with RLS, PostgreSQL RPCs, and Storage buckets on `hcpcycfvupjuklhcaxzg.supabase.co`.
 2. **Quality Verification:** 100% test coverage with **119 passing tests** and **0 static analysis issues**.
 3. **Multi-APK Interconnection:** All 3 APKs communicate seamlessly in real time.
-
+4. **Binary Optimization:** Split-per-ABI builds reduce APK install footprints from ~60MB to ~20MB–25MB per architecture.

@@ -1,6 +1,6 @@
-# Smart Nagpur Field Staff Application
+# Smart Nagpur Field Staff Application (NMC FieldForce)
 
-This is the on-ground field technician and supervisor mobile application for the Smart Nagpur municipal platform. The Staff app enables municipal workers to receive assigned complaints, navigate to grievance sites with turn-by-turn GPS guidance, capture on-site geo-verified Before/After evidence, and resolve civic issues.
+This is the on-ground field technician and supervisor mobile application for the Smart Nagpur municipal platform (`flavor: staff` / `com.smartnagpur.staff`). The Staff app enables municipal workers to receive assigned complaints, navigate to grievance sites with turn-by-turn GPS guidance, capture on-site geo-verified Before/After evidence, and resolve civic issues.
 
 ---
 
@@ -10,7 +10,7 @@ This is the on-ground field technician and supervisor mobile application for the
 - Live on-duty / off-duty toggle updating `staff_profiles(is_on_duty, last_active_at)`.
 - Technician profile overview displaying assigned municipal Department (Solid Waste, Water, Roads, Electricity, etc.) and Zone.
 
-### Realtime Task Consumption
+### Realtime Task Ingestion
 - Live debounced sync receiving assignments dispatched by Municipal Administrators.
 - Priority-ordered task feed (`urgent` $\to$ `high` $\to$ `medium` $\to$ `low`).
 - Filter chips: All, Assigned, Accepted, In Progress, Completed, Rework.
@@ -55,19 +55,24 @@ This is the on-ground field technician and supervisor mobile application for the
 
 ## 3. Building the Staff APK
 
-### Debug Mode (Local Testing)
+### A. Split-per-ABI Release APK (Recommended)
 ```bash
-flutter run -t lib/staff_main.dart
+flutter build apk --release --flavor staff -t lib/staff_main.dart --split-per-abi --no-pub \
+  --dart-define=SUPABASE_URL=https://hcpcycfvupjuklhcaxzg.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y
 ```
+**Outputs:**
+- `APKs/Staff/SmartNagpur_Staff_arm64-v8a.apk` (~21.7 MB)
+- `APKs/Staff/SmartNagpur_Staff_armeabi-v7a.apk` (~19.4 MB)
+- `APKs/Staff/SmartNagpur_Staff_x86_64.apk` (~23.1 MB)
 
-### Production Release APK (Using Flavors)
+### B. Universal Fat Release APK
 ```bash
 flutter build apk --release --flavor staff -t lib/staff_main.dart --no-pub \
   --dart-define=SUPABASE_URL=https://hcpcycfvupjuklhcaxzg.supabase.co \
   --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_bKO_IvESPlRkSNT1er_lgw_1MYoES5Y
 ```
-
-**Output Artifact:** `build/app/outputs/flutter-apk/app-staff-release.apk`
+**Output:** `APKs/NMC_FieldForce.apk` (`build/app/outputs/flutter-apk/app-staff-release.apk`) (~54.5 MB)
 
 ---
 
